@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\User;
+use App\Models\Warehouse;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 use Spatie\Permission\Models\Permission;
@@ -52,5 +53,10 @@ class DatabaseSeeder extends Seeder
         if (! $admin->hasRole('admin')) {
             $admin->assignRole($adminRole);
         }
+
+        Warehouse::firstOrCreate(
+            ['name' => 'Kho chính'],
+            ['is_default' => true],
+        );
     }
 }
