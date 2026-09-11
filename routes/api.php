@@ -2,11 +2,13 @@
 
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CategoryController;
+use App\Http\Controllers\Api\EmployeeController;
 use App\Http\Controllers\Api\MediaController;
 use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\Api\ProductImageController;
 use App\Http\Controllers\Api\ProductUnitController;
+use App\Http\Controllers\Api\RoleController;
 use App\Http\Controllers\Api\StockController;
 use App\Http\Controllers\Api\WarehouseController;
 use Illuminate\Support\Facades\Route;
@@ -41,4 +43,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('orders/{order}/cancel', [OrderController::class, 'cancel']);
     Route::post('orders/{order}/payments', [OrderController::class, 'pay']);
     Route::get('orders/{order}/invoice', [OrderController::class, 'invoice']);
+
+    Route::apiResource('employees', EmployeeController::class)->except(['destroy']);
+    Route::patch('employees/{employee}/status', [EmployeeController::class, 'updateStatus']);
+
+    Route::get('roles', [RoleController::class, 'index']);
 });
