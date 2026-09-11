@@ -47,5 +47,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('employees', EmployeeController::class)->except(['destroy']);
     Route::patch('employees/{employee}/status', [EmployeeController::class, 'updateStatus']);
 
-    Route::get('roles', [RoleController::class, 'index']);
+    Route::apiResource('roles', RoleController::class);
+    Route::get('permissions', [RoleController::class, 'catalog']);
 });
