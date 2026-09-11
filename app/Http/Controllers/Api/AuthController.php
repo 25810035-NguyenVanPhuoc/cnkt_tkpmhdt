@@ -5,7 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
@@ -19,7 +19,7 @@ class AuthController extends Controller
 
         $user = User::where('email', $credentials['email'])->first();
 
-        if (! $user || ! Auth::getProvider()->validateCredentials($user, $credentials) || ! $user->is_active) {
+        if (! $user || ! Hash::check($credentials['password'], $user->password) || ! $user->is_active) {
             throw ValidationException::withMessages([
                 'email' => ['Thông tin đăng nhập không đúng hoặc tài khoản đã bị khoá.'],
             ]);
