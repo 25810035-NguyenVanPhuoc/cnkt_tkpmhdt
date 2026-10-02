@@ -1,7 +1,7 @@
 # Tài liệu nghiệp vụ - Hệ thống Quản lý Bán hàng (QLBanHang)
 
 > Tài liệu này mô tả toàn bộ nghiệp vụ của hệ thống dựa trên thiết kế cơ sở dữ liệu (migrations) và mã nguồn hiện có (`app/`).
-> **Cập nhật 2026-10-02:** đã rà lại toàn bộ Model/Controller/route/trang Vue so với bản thiết kế DB ban đầu. 3 nhóm nghiệp vụ lõi (Danh mục & Sản phẩm, Kho hàng, Bán hàng) cùng Nhân viên, Phân quyền, Cài đặt hệ thống đã lập trình xong. Còn **3 module chưa làm**: Nhập hàng (NCC/Purchase Order), Khuyến mãi, Khách hàng — xem chi tiết trạng thái ở từng mục và bảng tổng hợp bên dưới. Mỗi mục nghiệp vụ có dòng trạng thái riêng để phân biệt **✅ Đã cài đặt** / **⚠️ Có nhưng còn thiếu** / **❌ Chưa code**.
+> **Cập nhật 2026-10-02:** đã rà lại toàn bộ Model/Controller/route/trang Vue so với bản thiết kế DB ban đầu và lập trình nốt 3 module còn thiếu (Khách hàng, Nhập hàng, Khuyến mãi — mỗi module 1 nhánh git riêng: `feat/module-customers`, `feat/module-purchasing`, `feat/module-promotions`). Toàn bộ 7 nhóm nghiệp vụ trong tài liệu này giờ đã lập trình xong. Mỗi mục nghiệp vụ có dòng trạng thái riêng để phân biệt **✅ Đã cài đặt** / **⚠️ Có nhưng còn thiếu**.
 
 ---
 
@@ -30,7 +30,7 @@ QLBanHang là hệ thống quản lý bán hàng/kho cho cửa hàng, bao gồm 
 | Nhân viên & Phân quyền (role/permission CRUD) | ✅ Model/Controller/CRUD + trang Vue |
 | Cài đặt hệ thống (`settings`) | ✅ `SettingsManager` (Singleton) + `SettingsController` + form Vue |
 | **Nhập hàng** (`suppliers`, `purchase_orders`, `purchase_order_items`) | ✅ `PurchaseOrderService` (luồng `draft → ordered → partially_received/received`, cộng tồn kho qua `InventoryService` khi nhận hàng) + `SupplierController`/`PurchaseOrderController` + trang Vue |
-| **Khuyến mãi** (`promotions`, `promotion_customer`, `order_promotion`) | ❌ Chỉ có DB schema — chưa có Model/Controller/route/trang Vue (trang `promotions/list.vue` đang là placeholder); `OrderController` cũng chưa áp khuyến mãi khi tạo đơn |
+| **Khuyến mãi** (`promotions`, `promotion_customer`, `order_promotion`) | ✅ `PromotionService` (tính giảm giá percentage/fixed_amount/buy_x_get_y, kiểm tra hiệu lực/usage_limit/gán riêng khách hàng) đã nối vào `OrderService::createOrder` qua `promotion_code` tuỳ chọn + `PromotionController` + trang Vue |
 | **Khách hàng** (`customers`) | ✅ `CustomerController` (CRUD) + `/api/customers` + trang Vue; `OrderService` đã tự gắn `customer_id` theo SĐT từ trước |
 | Ghi nhật ký thao tác (`audit_logs`) | ❌ Chỉ có DB schema, chưa có code ghi |
 
@@ -185,7 +185,11 @@ pending ──(xác nhận)──> confirmed ──(giao hàng)──> deliverin
 
 ## 7. Khuyến mãi
 
-**Trạng thái: ❌ Chưa làm — chỉ có DB schema.** Không có Model (`Promotion`, `PromotionCustomer`, `OrderPromotion`), không có Controller, không có route `/api/promotions`. Trang Vue `promotions/list.vue` đang là `PlaceholderPage`. `OrderController`/`OrderService` hiện tại chỉ nhận `discount_amount` nhập tay theo từng dòng sản phẩm (nhân viên tự gõ số tiền giảm), chưa tự động áp khuyến mãi nào. Đây là 1 trong 3 module còn thiếu của hệ thống.
+**Trạng thái: ✅ Đã cài đặt.** `PromotionController` (CRUD + gán/bỏ gán khách hàng riêng qua `promotion_customer`), `PromotionService::computeDiscount()` tính đúng theo từng `type`:
+- `percentage`/`fixed_amount`: giảm trên tổng tiền các dòng sản phẩm khớp `applies_to` (toàn đơn/theo danh mục/theo sản phẩm), không vượt quá tổng tiền các dòng đó.
+- `buy_x_get_y`: số lượng khớp chia cho `buy_quantity` → số bộ, nhân `get_quantity` → số đơn vị miễn phí, tính tiền theo đơn giá rẻ nhất trong các dòng khớp.
+
+`OrderService::createOrder()` nhận thêm field tuỳ chọn `promotion_code`: nếu có, `PromotionService` kiểm tra đủ điều kiện (`is_active`, `starts_at`/`ends_at`, `usage_limit` so với `usage_count`, `min_order_amount`, và nếu khuyến mãi đã được gán riêng cho khách hàng nào thì chỉ khách đó mới dùng được) rồi cộng dồn vào `orders.discount_total`, ghi 1 dòng `order_promotion`, tăng `usage_count`, và đánh dấu `used_at` trên `promotion_customer` nếu có. Áp dụng cho cả đơn tạo trong admin (`StoreOrderRequest`) lẫn đơn storefront (`StorefrontStoreOrderRequest`) — storefront đã nhận field ở backend nhưng **chưa có ô nhập mã giảm giá trên giao diện checkout** (có thể bổ sung sau). Trang Vue `promotions/list.vue` quản lý đầy đủ CRUD + gán khách hàng riêng.
 
 ### Bảng `promotions`
 - `name`, `code` (nullable, unique), `type`: enum `percentage / fixed_amount / buy_x_get_y`
@@ -240,11 +244,11 @@ users ──< orders ──< order_items >── products ── categories
 
 ## 10. Việc cần làm tiếp (TODO)
 
-**Còn đúng 3 module nghiệp vụ chưa code (ngoài `audit_logs`):**
+**Cả 3 module nghiệp vụ còn thiếu đã lập trình xong:**
 
 1. ~~Khách hàng~~ ✅ Đã làm (`feat/module-customers`).
 2. ~~Nhập hàng~~ ✅ Đã làm (`feat/module-purchasing`).
-3. **Khuyến mãi** — tạo Model `Promotion`/`PromotionCustomer`/`OrderPromotion`, `PromotionController`, service `PromotionService` tính `discount_amount` theo `type` (`percentage`/`fixed_amount`/`buy_x_get_y`) và nối vào `OrderService::createOrder` để tự áp khi tạo đơn, trang Vue thay `promotions/list.vue`.
+3. ~~Khuyến mãi~~ ✅ Đã làm (`feat/module-promotions`). Việc phụ còn lại: thêm ô nhập mã giảm giá trên giao diện checkout storefront (backend đã sẵn sàng nhận `promotion_code`).
 
 **Việc phụ, không gấp:**
 

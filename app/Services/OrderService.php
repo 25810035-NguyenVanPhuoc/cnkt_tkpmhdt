@@ -17,7 +17,10 @@ use Illuminate\Validation\ValidationException;
 
 class OrderService
 {
-    public function __construct(private readonly InventoryService $inventory) {}
+    public function __construct(
+        private readonly InventoryService $inventory,
+        private readonly PromotionService $promotions,
+    ) {}
 
     public function createOrder(array $data, User $actor): Order
     {
@@ -69,6 +72,7 @@ class OrderService
 
         $subtotal = 0;
         $discountTotal = 0;
+        $promotionItems = collect();
 
         foreach ($data['items'] as $itemData) {
             /** @var Product $product */
@@ -123,6 +127,20 @@ class OrderService
 
             $subtotal += $unitPrice * $quantity;
             $discountTotal += $lineDiscount;
+
+            $promotionItems->push([
+                'product_id' => $product->id,
+                'category_id' => $product->category_id,
+                'quantity' => $quantity,
+                'unit_price' => $unitPrice,
+                'line_total' => ($unitPrice * $quantity) - $lineDiscount,
+            ]);
+        }
+
+        if (! empty($data['promotion_code'])) {
+            $promotion = $this->promotions->resolveByCode($data['promotion_code'], $customer);
+            $promoDiscount = $this->promotions->computeDiscount($promotion, $promotionItems, $subtotal);
+            $discountTotal += $promoDiscount;
         }
 
         $order->update([
@@ -130,6 +148,10 @@ class OrderService
             'discount_total' => $discountTotal,
             'grand_total' => $subtotal - $discountTotal + $order->shipping_fee,
         ]);
+
+        if (isset($promotion)) {
+            $this->promotions->applyToOrder($order, $promotion, $promoDiscount);
+        }
 
         return $order->load(['items.product', 'items.productUnit', 'customer', 'warehouse', 'statusHistories']);
     }

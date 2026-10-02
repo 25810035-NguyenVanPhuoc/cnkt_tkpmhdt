@@ -18,6 +18,7 @@ class StorefrontStoreOrderRequest extends FormRequest
             'customer_phone' => ['required', 'string', 'max:255'],
             'shipping_address' => ['required', 'string', 'max:255'],
             'note' => ['nullable', 'string', 'max:255'],
+            'promotion_code' => ['nullable', 'string', 'max:255'],
             'items' => ['required', 'array', 'min:1'],
             'items.*.product_id' => ['required', 'integer', 'exists:products,id'],
             'items.*.quantity' => ['required', 'integer', 'min:1'],
