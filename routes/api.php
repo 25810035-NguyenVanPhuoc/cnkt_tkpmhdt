@@ -9,9 +9,11 @@ use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\Api\ProductImageController;
 use App\Http\Controllers\Api\ProductUnitController;
+use App\Http\Controllers\Api\PurchaseOrderController;
 use App\Http\Controllers\Api\RoleController;
 use App\Http\Controllers\Api\SettingsController;
 use App\Http\Controllers\Api\StockController;
+use App\Http\Controllers\Api\SupplierController;
 use App\Http\Controllers\Api\Storefront\CategoryController as StorefrontCategoryController;
 use App\Http\Controllers\Api\Storefront\OrderController as StorefrontOrderController;
 use App\Http\Controllers\Api\Storefront\ProductController as StorefrontProductController;
@@ -52,6 +54,13 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('product-units', [ProductUnitController::class, 'index']);
 
     Route::apiResource('customers', CustomerController::class);
+
+    Route::apiResource('suppliers', SupplierController::class);
+
+    Route::apiResource('purchase-orders', PurchaseOrderController::class)->except(['update', 'destroy']);
+    Route::post('purchase-orders/{purchase_order}/order', [PurchaseOrderController::class, 'markOrdered']);
+    Route::post('purchase-orders/{purchase_order}/receive', [PurchaseOrderController::class, 'receive']);
+    Route::post('purchase-orders/{purchase_order}/cancel', [PurchaseOrderController::class, 'cancel']);
 
     Route::apiResource('orders', OrderController::class)->except(['update', 'destroy']);
     Route::patch('orders/{order}/status', [OrderController::class, 'updateStatus']);

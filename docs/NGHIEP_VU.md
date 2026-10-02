@@ -29,7 +29,7 @@ QLBanHang là hệ thống quản lý bán hàng/kho cho cửa hàng, bao gồm 
 | Bán hàng (đơn hàng, đổi trạng thái, thanh toán) | ✅ `OrderService` + `OrderController` + trang Vue (POS) |
 | Nhân viên & Phân quyền (role/permission CRUD) | ✅ Model/Controller/CRUD + trang Vue |
 | Cài đặt hệ thống (`settings`) | ✅ `SettingsManager` (Singleton) + `SettingsController` + form Vue |
-| **Nhập hàng** (`suppliers`, `purchase_orders`, `purchase_order_items`) | ❌ Chỉ có DB schema — chưa có Model/Controller/route/trang Vue (trang `purchasing/orders/list.vue` đang là placeholder) |
+| **Nhập hàng** (`suppliers`, `purchase_orders`, `purchase_order_items`) | ✅ `PurchaseOrderService` (luồng `draft → ordered → partially_received/received`, cộng tồn kho qua `InventoryService` khi nhận hàng) + `SupplierController`/`PurchaseOrderController` + trang Vue |
 | **Khuyến mãi** (`promotions`, `promotion_customer`, `order_promotion`) | ❌ Chỉ có DB schema — chưa có Model/Controller/route/trang Vue (trang `promotions/list.vue` đang là placeholder); `OrderController` cũng chưa áp khuyến mãi khi tạo đơn |
 | **Khách hàng** (`customers`) | ✅ `CustomerController` (CRUD) + `/api/customers` + trang Vue; `OrderService` đã tự gắn `customer_id` theo SĐT từ trước |
 | Ghi nhật ký thao tác (`audit_logs`) | ❌ Chỉ có DB schema, chưa có code ghi |
@@ -122,7 +122,7 @@ Dùng package `spatie/laravel-permission`. Dữ liệu được seed sẵn trong
 
 ## 5. Quản lý nhập hàng
 
-**Trạng thái: ❌ Chưa làm — chỉ có DB schema.** Không có Model (`Supplier`, `PurchaseOrder`, `PurchaseOrderItem`), không có Controller, không có route `/api/suppliers`/`/api/purchase-orders`. Trang Vue `purchasing/orders/list.vue` đang là `PlaceholderPage`. Đây là 1 trong 3 module còn thiếu của hệ thống.
+**Trạng thái: ✅ Đã cài đặt.** `SupplierController` (CRUD NCC), `PurchaseOrderController` + `PurchaseOrderService` xử lý đúng luồng trạng thái thiết kế: `draft` (tạo nháp) → `ordered` (gửi NCC) → nhận hàng nhiều lần (`POST /purchase-orders/{id}/receive`, theo từng dòng sản phẩm, hỗ trợ cả IMEI/serial cho sản phẩm `is_serialized`) tự chuyển `partially_received` hoặc `received` khi đủ toàn bộ, hoặc `cancelled`. Mỗi lần nhận hàng gọi `InventoryService::stockIn()` (cộng `product_stock` hoặc tạo `product_units` mới) và ghi `stock_movements` loại `in` với `reference_type = 'purchase_order'`. Trang Vue `purchasing/orders/list.vue` gồm quản lý NCC + tạo đơn + nhận hàng từng phần.
 
 ### Bảng `suppliers`
 - `name`, `contact_name`, `phone`, `email`, `address`, `tax_code`, `is_active`
@@ -243,7 +243,7 @@ users ──< orders ──< order_items >── products ── categories
 **Còn đúng 3 module nghiệp vụ chưa code (ngoài `audit_logs`):**
 
 1. ~~Khách hàng~~ ✅ Đã làm (`feat/module-customers`).
-2. **Nhập hàng** — tạo Model `Supplier`/`PurchaseOrder`/`PurchaseOrderItem`, `SupplierController` + `PurchaseOrderController`, service `PurchaseOrderService` xử lý luồng `draft → ordered → partially_received → received`/`cancelled` (nhận hàng cập nhật `quantity_received`, ghi `stock_movements` loại `in`, cộng `product_stock`/tạo `product_units` mới), trang Vue thay `purchasing/orders/list.vue`.
+2. ~~Nhập hàng~~ ✅ Đã làm (`feat/module-purchasing`).
 3. **Khuyến mãi** — tạo Model `Promotion`/`PromotionCustomer`/`OrderPromotion`, `PromotionController`, service `PromotionService` tính `discount_amount` theo `type` (`percentage`/`fixed_amount`/`buy_x_get_y`) và nối vào `OrderService::createOrder` để tự áp khi tạo đơn, trang Vue thay `promotions/list.vue`.
 
 **Việc phụ, không gấp:**
