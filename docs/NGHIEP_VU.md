@@ -1,7 +1,7 @@
 # Tài liệu nghiệp vụ - Hệ thống Quản lý Bán hàng (QLBanHang)
 
 > Tài liệu này mô tả toàn bộ nghiệp vụ của hệ thống dựa trên thiết kế cơ sở dữ liệu (migrations) và mã nguồn hiện có (`app/`).
-> **Lưu ý quan trọng:** tại thời điểm viết tài liệu này, project mới ở giai đoạn khởi tạo — schema database đã được thiết kế đầy đủ cho toàn bộ nghiệp vụ, nhưng phần lớn logic xử lý (model, controller, service) **chưa được lập trình**. Mỗi mục nghiệp vụ bên dưới đều có dòng trạng thái để phân biệt rõ **Đã cài đặt** và **Mới thiết kế ở DB (chưa code)**.
+> **Cập nhật 2026-10-02:** đã rà lại toàn bộ Model/Controller/route/trang Vue so với bản thiết kế DB ban đầu. 3 nhóm nghiệp vụ lõi (Danh mục & Sản phẩm, Kho hàng, Bán hàng) cùng Nhân viên, Phân quyền, Cài đặt hệ thống đã lập trình xong. Còn **3 module chưa làm**: Nhập hàng (NCC/Purchase Order), Khuyến mãi, Khách hàng — xem chi tiết trạng thái ở từng mục và bảng tổng hợp bên dưới. Mỗi mục nghiệp vụ có dòng trạng thái riêng để phân biệt **✅ Đã cài đặt** / **⚠️ Có nhưng còn thiếu** / **❌ Chưa code**.
 
 ---
 
@@ -23,12 +23,16 @@ QLBanHang là hệ thống quản lý bán hàng/kho cho cửa hàng, bao gồm 
 |---|---|
 | Database schema (migrations) | ✅ Đầy đủ cho toàn bộ 20 bảng nghiệp vụ |
 | Xác thực (đăng nhập/đăng xuất, Sanctum token) | ✅ Đã cài đặt |
-| Phân quyền RBAC (Spatie Permission) | ✅ Cấu trúc + seed quyền đã có, ⚠️ chưa áp dụng vào route nào |
-| Eloquent Models (Product, Order, Warehouse...) | ❌ Chưa có (chỉ có `User`) |
-| Controllers nghiệp vụ (sản phẩm, đơn hàng, kho, nhập hàng...) | ❌ Chưa có (chỉ có `AuthController`) |
-| Routes API cho nghiệp vụ | ❌ Chưa có (chỉ có `/login`, `/logout`, `/me`) |
-| Service/luồng chuyển trạng thái đơn hàng, nhập hàng | ❌ Chưa có |
-| Ghi nhật ký thao tác (`audit_logs`) | ❌ Chưa có code ghi |
+| Phân quyền RBAC (Spatie Permission) | ✅ Đã áp dụng middleware `permission:` vào toàn bộ route nghiệp vụ; có 3 role (`admin`, `sales_staff`, `warehouse_staff`) |
+| Danh mục & Sản phẩm | ✅ Model/Controller/CRUD + Media Library, có trang Vue |
+| Kho hàng (tồn kho SL + serial/IMEI, nhập/điều chỉnh/chuyển kho) | ✅ Model/Controller/Service + trang Vue |
+| Bán hàng (đơn hàng, đổi trạng thái, thanh toán) | ✅ `OrderService` + `OrderController` + trang Vue (POS) |
+| Nhân viên & Phân quyền (role/permission CRUD) | ✅ Model/Controller/CRUD + trang Vue |
+| Cài đặt hệ thống (`settings`) | ✅ `SettingsManager` (Singleton) + `SettingsController` + form Vue |
+| **Nhập hàng** (`suppliers`, `purchase_orders`, `purchase_order_items`) | ❌ Chỉ có DB schema — chưa có Model/Controller/route/trang Vue (trang `purchasing/orders/list.vue` đang là placeholder) |
+| **Khuyến mãi** (`promotions`, `promotion_customer`, `order_promotion`) | ❌ Chỉ có DB schema — chưa có Model/Controller/route/trang Vue (trang `promotions/list.vue` đang là placeholder); `OrderController` cũng chưa áp khuyến mãi khi tạo đơn |
+| **Khách hàng** (`customers`) | ❌ Chỉ có Model rỗng, chưa có Controller/route; trang `customers/list.vue` đang là placeholder; `OrderController` chưa gắn `customer_id` khi tạo đơn (chỉ lưu tên/sđt/địa chỉ trực tiếp trên `orders`) |
+| Ghi nhật ký thao tác (`audit_logs`) | ❌ Chỉ có DB schema, chưa có code ghi |
 
 ---
 
@@ -61,13 +65,13 @@ Dùng package `spatie/laravel-permission`. Dữ liệu được seed sẵn trong
 - **1 vai trò duy nhất `admin`** được gán toàn bộ 40 quyền.
 - **Tài khoản admin mặc định:** email `admin@qlibanhang.local`, mật khẩu `password`.
 
-⚠️ Hiện tại **chưa có vai trò nào khác ngoài `admin`** (ví dụ: nhân viên bán hàng, thủ kho...), và **chưa route nào áp dụng middleware `role:`/`permission:`** để thực sự giới hạn quyền truy cập — cần bổ sung khi xây controller cho từng module.
+✅ Đã có thêm 2 role ngoài `admin`: `sales_staff` (`sales.view/create/update`, `products.view`, `categories.view`, `warehouse.view`) và `warehouse_staff` (toàn quyền `warehouse.*` + `products.*`, `categories.view`). Mọi route nghiệp vụ đã áp middleware `permission:module.action` tương ứng (xem từng `*Controller::middleware()` dùng `HasMiddleware`).
 
 ---
 
 ## 3. Quản lý danh mục & sản phẩm
 
-**Trạng thái: ❌ Chỉ có DB schema, chưa có Model/Controller.**
+**Trạng thái: ✅ Đã cài đặt đầy đủ** — `CategoryController`/`ProductController` (CRUD + FormRequest + Resource), quản lý ảnh qua `ProductImageController` + Media Library (`MediaController`, `MediaFile`, `ImageOptimizer`), trang Vue `catalog/categories` và `catalog/products`.
 
 ### Bảng `categories`
 - `name`, `slug` (unique), `is_active`
@@ -87,7 +91,7 @@ Dùng package `spatie/laravel-permission`. Dữ liệu được seed sẵn trong
 
 ## 4. Quản lý kho hàng
 
-**Trạng thái: ❌ Chỉ có DB schema, chưa có Model/Controller/logic tính tồn kho.**
+**Trạng thái: ✅ Đã cài đặt đầy đủ** — `WarehouseController`, `StockController` (nhập/điều chỉnh/chuyển kho), `ProductUnitController`, service `InventoryService` + `InventoryStrategy` (Bulk/Serialized) xử lý đúng 2 kiểu tồn kho (số lượng vs serial/IMEI), trang Vue `warehouse/stock`.
 
 ### Bảng `warehouses`
 - `name`, `address`, `is_default` — hệ thống có thể có nhiều kho, 1 kho mặc định.
@@ -118,7 +122,7 @@ Dùng package `spatie/laravel-permission`. Dữ liệu được seed sẵn trong
 
 ## 5. Quản lý nhập hàng
 
-**Trạng thái: ❌ Chỉ có DB schema, chưa có Model/Controller/logic chuyển trạng thái.**
+**Trạng thái: ❌ Chưa làm — chỉ có DB schema.** Không có Model (`Supplier`, `PurchaseOrder`, `PurchaseOrderItem`), không có Controller, không có route `/api/suppliers`/`/api/purchase-orders`. Trang Vue `purchasing/orders/list.vue` đang là `PlaceholderPage`. Đây là 1 trong 3 module còn thiếu của hệ thống.
 
 ### Bảng `suppliers`
 - `name`, `contact_name`, `phone`, `email`, `address`, `tax_code`, `is_active`
@@ -147,7 +151,9 @@ draft ──(gửi đơn cho NCC)──> ordered ──(nhận 1 phần hàng)�
 
 ## 6. Quản lý bán hàng
 
-**Trạng thái: ❌ Chỉ có DB schema, chưa có Model/Controller/logic chuyển trạng thái.**
+**Trạng thái: ⚠️ Một nửa đã làm.** Phần **đơn hàng** (`orders`, `order_items`, `order_status_histories`) ✅ đã cài đặt đầy đủ: `OrderService` (đổi trạng thái + trừ/hoàn kho qua `InventoryService`), `OrderController` (CRUD, đổi trạng thái, huỷ, thanh toán, in hoá đơn), trang Vue `sales/list.vue` (POS). Đơn khách đặt từ storefront (`/api/storefront/orders`) cũng đi qua cùng `OrderService` này.
+
+Phần **khách hàng** (`customers`) ❌ chưa làm: chỉ có `Model Customer` rỗng (từ migration), không có Controller, không có route `/api/customers`. Trang Vue `customers/list.vue` đang là `PlaceholderPage`. Quan trọng hơn: cả `OrderController` (admin) lẫn `Storefront\OrderController` đều **không gắn `customer_id`** khi tạo đơn — tên/sđt/địa chỉ khách lưu trực tiếp trên `orders` (`shipping_name`, `shipping_phone`, `shipping_address`), không tra/tạo bản ghi trong bảng `customers`. Vì vậy module Khách hàng chưa có dữ liệu thật để hiển thị dù có xây UI ngay. Đây là 1 trong 3 module còn thiếu của hệ thống.
 
 ### Bảng `customers`
 - `name`, `phone` (unique), `email`, `address`, `loyalty_points` (điểm tích luỹ)
@@ -179,7 +185,7 @@ pending ──(xác nhận)──> confirmed ──(giao hàng)──> deliverin
 
 ## 7. Khuyến mãi
 
-**Trạng thái: ❌ Chỉ có DB schema, chưa có Model/Controller/logic tính giảm giá.**
+**Trạng thái: ❌ Chưa làm — chỉ có DB schema.** Không có Model (`Promotion`, `PromotionCustomer`, `OrderPromotion`), không có Controller, không có route `/api/promotions`. Trang Vue `promotions/list.vue` đang là `PlaceholderPage`. `OrderController`/`OrderService` hiện tại chỉ nhận `discount_amount` nhập tay theo từng dòng sản phẩm (nhân viên tự gõ số tiền giảm), chưa tự động áp khuyến mãi nào. Đây là 1 trong 3 module còn thiếu của hệ thống.
 
 ### Bảng `promotions`
 - `name`, `code` (nullable, unique), `type`: enum `percentage / fixed_amount / buy_x_get_y`
@@ -199,13 +205,13 @@ pending ──(xác nhận)──> confirmed ──(giao hàng)──> deliverin
 
 ## 8. Nhật ký & Cấu hình hệ thống
 
-**Trạng thái: ❌ Chỉ có DB schema, chưa có code ghi/đọc.**
-
 ### Bảng `audit_logs`
+**Trạng thái: ❌ Chưa làm** — chỉ có DB schema, chưa có code ghi/đọc ở đâu trong `app/`.
 - `user_id`, `action`, `auditable_type` + `auditable_id` (đa hình — bản ghi nào bị tác động), `old_values`/`new_values` (JSON), `ip_address`, `user_agent`
 - Dùng để ghi lại lịch sử thay đổi dữ liệu quan trọng (ai sửa gì, khi nào).
 
 ### Bảng `settings`
+**Trạng thái: ✅ Đã cài đặt** — `Setting` model, service `SettingsManager` (Singleton — 1 instance đọc/ghi bảng `settings` dùng chung, xem `docs/DESIGN_PATTERNS.docx`), `SettingsController` (`GET`/`PUT /api/settings`, gate bằng `settings.view`/`settings.update`), form Vue `settings/general/form.vue` (thông tin cửa hàng: tên, SĐT, email, địa chỉ, thuế VAT).
 - `key` (unique), `value`, `type`, `group`, `updated_by`
 - Cấu hình hệ thống dạng key-value (vd: thông tin cửa hàng, thuế suất mặc định...), có thể nhóm theo `group`.
 
@@ -234,10 +240,13 @@ users ──< orders ──< order_items >── products ── categories
 
 ## 10. Việc cần làm tiếp (TODO)
 
-1. Tạo Eloquent Model cho 19 bảng còn thiếu, khai báo đầy đủ quan hệ (`belongsTo`/`hasMany`/`belongsToMany`).
-2. Viết Controller + FormRequest cho từng module (CRUD danh mục, sản phẩm, kho, nhập hàng, bán hàng, khuyến mãi, khách hàng, nhà cung cấp, nhân viên, cấu hình).
-3. Viết Service xử lý nghiệp vụ có trạng thái phức tạp: `OrderService` (đổi trạng thái đơn + trừ/hoàn kho), `PurchaseOrderService` (nhận hàng + nhập kho), `PromotionService` (tính giảm giá).
-4. Áp dụng middleware `permission:module.action` vào route theo đúng 40 quyền đã seed.
-5. Bổ sung vai trò khác ngoài `admin` (vd: `staff`, `warehouse_keeper`) với tập quyền phù hợp.
-6. Ghi `audit_logs` tự động khi có thao tác tạo/sửa/xoá trên các bảng quan trọng.
-7. Bổ sung Job/Notification cho các sự kiện: cảnh báo tồn kho thấp, xác nhận đơn hàng, nhắc hạn khuyến mãi.
+**Còn đúng 3 module nghiệp vụ chưa code (ngoài `audit_logs`):**
+
+1. **Khách hàng** — Model đã có (rỗng), cần: `CustomerController` (CRUD) + route `/api/customers` + trang Vue thay `customers/list.vue`; đồng thời sửa `OrderController`/`Storefront\OrderController` để tra/tạo `customer_id` theo SĐT thay vì chỉ lưu tên/sđt rời trên `orders`.
+2. **Nhập hàng** — tạo Model `Supplier`/`PurchaseOrder`/`PurchaseOrderItem`, `SupplierController` + `PurchaseOrderController`, service `PurchaseOrderService` xử lý luồng `draft → ordered → partially_received → received`/`cancelled` (nhận hàng cập nhật `quantity_received`, ghi `stock_movements` loại `in`, cộng `product_stock`/tạo `product_units` mới), trang Vue thay `purchasing/orders/list.vue`.
+3. **Khuyến mãi** — tạo Model `Promotion`/`PromotionCustomer`/`OrderPromotion`, `PromotionController`, service `PromotionService` tính `discount_amount` theo `type` (`percentage`/`fixed_amount`/`buy_x_get_y`) và nối vào `OrderService::createOrder` để tự áp khi tạo đơn, trang Vue thay `promotions/list.vue`.
+
+**Việc phụ, không gấp:**
+
+4. Ghi `audit_logs` tự động khi có thao tác tạo/sửa/xoá trên các bảng quan trọng (chưa có observer/listener nào).
+5. Bổ sung Job/Notification cho các sự kiện: cảnh báo tồn kho thấp, xác nhận đơn hàng, nhắc hạn khuyến mãi.
