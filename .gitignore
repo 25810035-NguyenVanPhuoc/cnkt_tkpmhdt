@@ -26,3 +26,6 @@ _ide_helper.php
 Homestead.json
 Homestead.yaml
 Thumbs.db
+
+# Template HTML gốc tải về chỉ để tham khảo khi port sang Blade, không phải code thật.
+/resources/views/cozastore-1.0.0/

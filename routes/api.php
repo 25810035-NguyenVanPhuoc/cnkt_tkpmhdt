@@ -9,11 +9,23 @@ use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\Api\ProductImageController;
 use App\Http\Controllers\Api\ProductUnitController;
 use App\Http\Controllers\Api\RoleController;
+use App\Http\Controllers\Api\SettingsController;
 use App\Http\Controllers\Api\StockController;
+use App\Http\Controllers\Api\Storefront\CategoryController as StorefrontCategoryController;
+use App\Http\Controllers\Api\Storefront\OrderController as StorefrontOrderController;
+use App\Http\Controllers\Api\Storefront\ProductController as StorefrontProductController;
 use App\Http\Controllers\Api\WarehouseController;
 use Illuminate\Support\Facades\Route;
 
 Route::post('/login', [AuthController::class, 'login']);
+
+// API public cho storefront (khách vãng lai) — không cần đăng nhập.
+Route::prefix('storefront')->name('storefront.')->group(function () {
+    Route::get('categories', [StorefrontCategoryController::class, 'index']);
+    Route::get('products', [StorefrontProductController::class, 'index']);
+    Route::get('products/{product}', [StorefrontProductController::class, 'show']);
+    Route::post('orders', [StorefrontOrderController::class, 'store']);
+});
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
@@ -49,4 +61,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::apiResource('roles', RoleController::class);
     Route::get('permissions', [RoleController::class, 'catalog']);
+
+    Route::get('settings', [SettingsController::class, 'index']);
+    Route::put('settings', [SettingsController::class, 'update']);
 });

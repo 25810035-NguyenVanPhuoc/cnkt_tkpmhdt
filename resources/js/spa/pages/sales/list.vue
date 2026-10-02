@@ -40,13 +40,21 @@ function productLabel(id) {
 }
 
 async function loadWarehouses() {
-    const res = await apiFetch('/warehouses?per_page=100', {}, auth.token);
-    warehouses.value = res.data || [];
+    try {
+        const res = await apiFetch('/warehouses?per_page=100', {}, auth.token);
+        warehouses.value = res.data || [];
+    } catch (e) {
+        pageError.value = e.data?.message || 'Không tải được danh sách kho.';
+    }
 }
 
 async function loadProducts() {
-    const res = await apiFetch('/products?per_page=200&is_active=1', {}, auth.token);
-    products.value = res.data || [];
+    try {
+        const res = await apiFetch('/products?per_page=200&is_active=1', {}, auth.token);
+        products.value = res.data || [];
+    } catch (e) {
+        pageError.value = e.data?.message || 'Không tải được danh sách sản phẩm.';
+    }
 }
 
 async function loadOrders(page = 1) {
@@ -212,7 +220,7 @@ async function submitPayment(order) {
 }
 
 onMounted(async () => {
-    await Promise.all([loadWarehouses(), loadProducts()]);
+    await Promise.allSettled([loadWarehouses(), loadProducts()]);
     loadOrders();
 });
 </script>

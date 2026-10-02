@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
     'code', 'customer_id', 'user_id', 'warehouse_id', 'status',
     'subtotal', 'discount_total', 'shipping_fee', 'grand_total',
     'payment_method', 'paid_amount', 'order_date', 'note',
+    'shipping_name', 'shipping_phone', 'shipping_address',
 ])]
 class Order extends Model
 {
