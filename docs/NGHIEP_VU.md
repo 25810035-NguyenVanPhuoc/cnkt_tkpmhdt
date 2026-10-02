@@ -31,7 +31,7 @@ QLBanHang là hệ thống quản lý bán hàng/kho cho cửa hàng, bao gồm 
 | Cài đặt hệ thống (`settings`) | ✅ `SettingsManager` (Singleton) + `SettingsController` + form Vue |
 | **Nhập hàng** (`suppliers`, `purchase_orders`, `purchase_order_items`) | ❌ Chỉ có DB schema — chưa có Model/Controller/route/trang Vue (trang `purchasing/orders/list.vue` đang là placeholder) |
 | **Khuyến mãi** (`promotions`, `promotion_customer`, `order_promotion`) | ❌ Chỉ có DB schema — chưa có Model/Controller/route/trang Vue (trang `promotions/list.vue` đang là placeholder); `OrderController` cũng chưa áp khuyến mãi khi tạo đơn |
-| **Khách hàng** (`customers`) | ❌ Chỉ có Model rỗng, chưa có Controller/route; trang `customers/list.vue` đang là placeholder; `OrderController` chưa gắn `customer_id` khi tạo đơn (chỉ lưu tên/sđt/địa chỉ trực tiếp trên `orders`) |
+| **Khách hàng** (`customers`) | ✅ `CustomerController` (CRUD) + `/api/customers` + trang Vue; `OrderService` đã tự gắn `customer_id` theo SĐT từ trước |
 | Ghi nhật ký thao tác (`audit_logs`) | ❌ Chỉ có DB schema, chưa có code ghi |
 
 ---
@@ -153,7 +153,7 @@ draft ──(gửi đơn cho NCC)──> ordered ──(nhận 1 phần hàng)�
 
 **Trạng thái: ⚠️ Một nửa đã làm.** Phần **đơn hàng** (`orders`, `order_items`, `order_status_histories`) ✅ đã cài đặt đầy đủ: `OrderService` (đổi trạng thái + trừ/hoàn kho qua `InventoryService`), `OrderController` (CRUD, đổi trạng thái, huỷ, thanh toán, in hoá đơn), trang Vue `sales/list.vue` (POS). Đơn khách đặt từ storefront (`/api/storefront/orders`) cũng đi qua cùng `OrderService` này.
 
-Phần **khách hàng** (`customers`) ❌ chưa làm: chỉ có `Model Customer` rỗng (từ migration), không có Controller, không có route `/api/customers`. Trang Vue `customers/list.vue` đang là `PlaceholderPage`. Quan trọng hơn: cả `OrderController` (admin) lẫn `Storefront\OrderController` đều **không gắn `customer_id`** khi tạo đơn — tên/sđt/địa chỉ khách lưu trực tiếp trên `orders` (`shipping_name`, `shipping_phone`, `shipping_address`), không tra/tạo bản ghi trong bảng `customers`. Vì vậy module Khách hàng chưa có dữ liệu thật để hiển thị dù có xây UI ngay. Đây là 1 trong 3 module còn thiếu của hệ thống.
+Phần **khách hàng** (`customers`) ✅ đã cài đặt: `CustomerController` (CRUD + tìm theo tên/SĐT) + `/api/customers`, trang Vue `customers/list.vue`. `OrderService::resolveCustomer()` đã tự `firstOrCreate` khách hàng theo `customer_phone` ngay từ khi `OrderService` được viết — cả đơn tạo trong admin lẫn đơn từ storefront đều tự động gắn `customer_id` (đính chính: bản cập nhật tài liệu trước đó ghi nhầm là chưa gắn — thực tế đã có sẵn và hoạt động đúng, xác nhận qua dữ liệu thật: 5 khách hàng đã tồn tại trong DB từ các đơn trước khi module này được xây).
 
 ### Bảng `customers`
 - `name`, `phone` (unique), `email`, `address`, `loyalty_points` (điểm tích luỹ)
@@ -242,7 +242,7 @@ users ──< orders ──< order_items >── products ── categories
 
 **Còn đúng 3 module nghiệp vụ chưa code (ngoài `audit_logs`):**
 
-1. **Khách hàng** — Model đã có (rỗng), cần: `CustomerController` (CRUD) + route `/api/customers` + trang Vue thay `customers/list.vue`; đồng thời sửa `OrderController`/`Storefront\OrderController` để tra/tạo `customer_id` theo SĐT thay vì chỉ lưu tên/sđt rời trên `orders`.
+1. ~~Khách hàng~~ ✅ Đã làm (`feat/module-customers`).
 2. **Nhập hàng** — tạo Model `Supplier`/`PurchaseOrder`/`PurchaseOrderItem`, `SupplierController` + `PurchaseOrderController`, service `PurchaseOrderService` xử lý luồng `draft → ordered → partially_received → received`/`cancelled` (nhận hàng cập nhật `quantity_received`, ghi `stock_movements` loại `in`, cộng `product_stock`/tạo `product_units` mới), trang Vue thay `purchasing/orders/list.vue`.
 3. **Khuyến mãi** — tạo Model `Promotion`/`PromotionCustomer`/`OrderPromotion`, `PromotionController`, service `PromotionService` tính `discount_amount` theo `type` (`percentage`/`fixed_amount`/`buy_x_get_y`) và nối vào `OrderService::createOrder` để tự áp khi tạo đơn, trang Vue thay `promotions/list.vue`.
 

@@ -13,6 +13,12 @@ class CustomerResource extends JsonResource
             'id' => $this->id,
             'name' => $this->name,
             'phone' => $this->phone,
+            'email' => $this->email,
+            'address' => $this->address,
+            'loyalty_points' => $this->loyalty_points,
+            'orders_count' => $this->whenCounted('orders'),
+            'created_at' => $this->created_at,
+            'updated_at' => $this->updated_at,
         ];
     }
 }

@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CategoryController;
+use App\Http\Controllers\Api\CustomerController;
 use App\Http\Controllers\Api\EmployeeController;
 use App\Http\Controllers\Api\MediaController;
 use App\Http\Controllers\Api\OrderController;
@@ -49,6 +50,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('stock/adjust', [StockController::class, 'adjust']);
     Route::post('stock/transfer', [StockController::class, 'transfer']);
     Route::get('product-units', [ProductUnitController::class, 'index']);
+
+    Route::apiResource('customers', CustomerController::class);
 
     Route::apiResource('orders', OrderController::class)->except(['update', 'destroy']);
     Route::patch('orders/{order}/status', [OrderController::class, 'updateStatus']);
