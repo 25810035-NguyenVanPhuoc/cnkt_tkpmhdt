@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\Api\ProductImageController;
 use App\Http\Controllers\Api\ProductUnitController;
+use App\Http\Controllers\Api\PromotionController;
 use App\Http\Controllers\Api\PurchaseOrderController;
 use App\Http\Controllers\Api\RoleController;
 use App\Http\Controllers\Api\SettingsController;
@@ -61,6 +62,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('purchase-orders/{purchase_order}/order', [PurchaseOrderController::class, 'markOrdered']);
     Route::post('purchase-orders/{purchase_order}/receive', [PurchaseOrderController::class, 'receive']);
     Route::post('purchase-orders/{purchase_order}/cancel', [PurchaseOrderController::class, 'cancel']);
+
+    Route::apiResource('promotions', PromotionController::class);
+    Route::post('promotions/{promotion}/customers', [PromotionController::class, 'assignCustomer']);
+    Route::delete('promotions/{promotion}/customers/{customer}', [PromotionController::class, 'unassignCustomer']);
 
     Route::apiResource('orders', OrderController::class)->except(['update', 'destroy']);
     Route::patch('orders/{order}/status', [OrderController::class, 'updateStatus']);
