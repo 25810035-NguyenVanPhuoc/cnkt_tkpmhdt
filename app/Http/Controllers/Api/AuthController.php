@@ -26,7 +26,7 @@ class AuthController extends Controller
                 ! $user->is_active => 'account_locked',
                 default => 'wrong_password',
             };
-            ActivityLogger::instance()->logLoginFailed($credentials['email'], $reason);
+            ActivityLogger::instance()->logLoginFailed($credentials['email'], $reason, $user);
 
             throw ValidationException::withMessages([
                 'email' => ['Thông tin đăng nhập không đúng hoặc tài khoản đã bị khoá.'],
@@ -35,7 +35,7 @@ class AuthController extends Controller
 
         $token = $user->createToken('spa')->plainTextToken;
 
-        ActivityLogger::instance()->logLoginSuccess($user->id, $user->email);
+        ActivityLogger::instance()->logLoginSuccess($user);
 
         return response()->json([
             'token' => $token,

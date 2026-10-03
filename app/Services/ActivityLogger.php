@@ -2,6 +2,9 @@
 
 namespace App\Services;
 
+use App\Models\Customer;
+use App\Models\User;
+
 /**
  * Singleton: ghi log hoạt động (đăng nhập, mua hàng) xuống 1 file dùng
  * chung storage/logs/activity.log. Chỉ một instance mở/ghi file này trong
@@ -15,6 +18,13 @@ final class ActivityLogger
 
     private string $logPath;
 
+    /** Nhãn vai trò hiển thị trong log — khớp ROLE_LABEL ở employees/list.vue. */
+    private const ROLE_LABEL = [
+        'admin' => 'Quản trị viên',
+        'sales_staff' => 'NV bán hàng',
+        'warehouse_staff' => 'NV kho',
+    ];
+
     private function __construct()
     {
         $this->logPath = storage_path('logs/activity.log');
@@ -25,33 +35,45 @@ final class ActivityLogger
         return self::$instance ??= new self();
     }
 
-    public function logLoginSuccess(int $userId, string $email): void
+    public function logLoginSuccess(User $user): void
     {
         $this->write('LOGIN_SUCCESS', [
-            'user_id' => $userId,
-            'email' => $email,
+            'nguoi_dung' => $this->userLabel($user),
+            'email' => $user->email,
             'ip' => request()?->ip(),
         ]);
     }
 
-    public function logLoginFailed(string $email, string $reason): void
+    public function logLoginFailed(string $email, string $reason, ?User $user = null): void
     {
         $this->write('LOGIN_FAILED', [
-            'email' => $email,
+            'nguoi_dung' => $user ? $this->userLabel($user) : $email,
             'ip' => request()?->ip(),
             'reason' => $reason,
         ]);
     }
 
-    public function logOrderCreated(string $orderCode, ?int $userId, ?int $customerId, int $grandTotal, string $source): void
+    public function logOrderCreated(string $orderCode, User $actor, ?Customer $customer, int $grandTotal, string $source): void
     {
         $this->write('ORDER_CREATED', [
             'order_code' => $orderCode,
-            'user_id' => $userId,
-            'customer_id' => $customerId,
+            'nguoi_tao' => $source === 'storefront' ? 'Khách đặt online (không đăng nhập)' : $this->userLabel($actor),
+            'khach_hang' => $customer ? "{$customer->name} ({$customer->phone})" : 'Khách vãng lai',
             'grand_total' => $grandTotal,
             'source' => $source,
         ]);
+    }
+
+    /**
+     * "Tên nhân viên (Vai trò)", vd: "Nguyễn Văn An (NV bán hàng)" — nhân
+     * viên có thể chưa gán vai trò nào (vd admin seed thủ công).
+     */
+    private function userLabel(User $user): string
+    {
+        $role = $user->getRoleNames()->first();
+        $roleLabel = $role ? (self::ROLE_LABEL[$role] ?? $role) : 'chưa gán vai trò';
+
+        return "{$user->name} ({$roleLabel})";
     }
 
     private function write(string $event, array $context): void
