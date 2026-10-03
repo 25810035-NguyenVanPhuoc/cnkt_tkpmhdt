@@ -30,8 +30,8 @@ class OrderService
 
                 ActivityLogger::instance()->logOrderCreated(
                     $order->code,
-                    $actor->id,
-                    $order->customer_id,
+                    $actor,
+                    $order->customer,
                     $order->grand_total,
                     $data['source'] ?? 'admin',
                 );
