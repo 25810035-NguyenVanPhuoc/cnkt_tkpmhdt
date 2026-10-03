@@ -32,7 +32,8 @@ QLBanHang là hệ thống quản lý bán hàng/kho cho cửa hàng, bao gồm 
 | **Nhập hàng** (`suppliers`, `purchase_orders`, `purchase_order_items`) | ✅ `PurchaseOrderService` (luồng `draft → ordered → partially_received/received`, cộng tồn kho qua `InventoryService` khi nhận hàng) + `SupplierController`/`PurchaseOrderController` + trang Vue |
 | **Khuyến mãi** (`promotions`, `promotion_customer`, `order_promotion`) | ✅ `PromotionService` (tính giảm giá percentage/fixed_amount/buy_x_get_y, kiểm tra hiệu lực/usage_limit/gán riêng khách hàng) đã nối vào `OrderService::createOrder` qua `promotion_code` tuỳ chọn + `PromotionController` + trang Vue |
 | **Khách hàng** (`customers`) | ✅ `CustomerController` (CRUD) + `/api/customers` + trang Vue; `OrderService` đã tự gắn `customer_id` theo SĐT từ trước |
-| Ghi nhật ký thao tác (`audit_logs`) | ❌ Chỉ có DB schema, chưa có code ghi |
+| Nhật ký hoạt động (đăng nhập, mua hàng) | ✅ `ActivityLogger` (Singleton) ghi xuống `storage/logs/activity.log` + trang Vue xem log |
+| Ghi nhật ký thao tác CRUD (`audit_logs`, bảng DB riêng, lưu old/new values) | ❌ Chỉ có DB schema, chưa có code ghi — khác với `ActivityLogger` ở trên (file log, chỉ 2 loại sự kiện đăng nhập/mua hàng) |
 
 ---
 
@@ -209,8 +210,15 @@ pending ──(xác nhận)──> confirmed ──(giao hàng)──> deliverin
 
 ## 8. Nhật ký & Cấu hình hệ thống
 
+### Nhật ký hoạt động (đăng nhập, mua hàng) — file log, không phải bảng `audit_logs`
+**Trạng thái: ✅ Đã cài đặt.** `ActivityLogger` (`app/Services/ActivityLogger.php`) — Singleton thứ 2 trong dự án (xem `docs/DESIGN_PATTERNS.docx` mục 8), ghi xuống file `storage/logs/activity.log` (không dùng bảng DB):
+- `AuthController::login()` ghi `LOGIN_SUCCESS` (kèm `user_id`, `email`, `ip`) hoặc `LOGIN_FAILED` (kèm lý do: `wrong_password`/`user_not_found`/`account_locked`).
+- `OrderService::createOrder()` ghi `ORDER_CREATED` (kèm `order_code`, `user_id`, `customer_id`, `grand_total`, `source` = `admin`/`storefront`) — sau khi transaction tạo đơn đã commit, dùng chung cho cả đơn bán tại quầy lẫn đơn storefront.
+- Trang Vue "Nhật ký hoạt động" (`settings/activity-log`, gate `settings.view`) đọc lại N dòng cuối qua `ActivityLogger::tail()`, route `GET /api/activity-log`.
+- **Lưu ý khi code:** constructor `private` nên không thể constructor-inject qua Laravel container (đã gặp lỗi `BindingResolutionException: is not instantiable` khi thử nghiệm) — phải gọi trực tiếp `ActivityLogger::instance()` tại nơi cần dùng.
+
 ### Bảng `audit_logs`
-**Trạng thái: ❌ Chưa làm** — chỉ có DB schema, chưa có code ghi/đọc ở đâu trong `app/`.
+**Trạng thái: ❌ Chưa làm** — chỉ có DB schema, chưa có code ghi/đọc ở đâu trong `app/`. Khác với `ActivityLogger` ở trên: đây là bảng DB lưu **old/new values** cho mọi thao tác CRUD (sửa/xoá), phạm vi rộng hơn nhiều so với 2 sự kiện đăng nhập/mua hàng.
 - `user_id`, `action`, `auditable_type` + `auditable_id` (đa hình — bản ghi nào bị tác động), `old_values`/`new_values` (JSON), `ip_address`, `user_agent`
 - Dùng để ghi lại lịch sử thay đổi dữ liệu quan trọng (ai sửa gì, khi nào).
 

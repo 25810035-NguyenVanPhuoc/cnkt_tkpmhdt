@@ -29,6 +29,7 @@ export const navConfig = [
         children: [
             { label: 'Phân quyền', route: 'settings.roles.list', module: 'roles' },
             { label: 'Cài đặt hệ thống', route: 'settings.general', module: 'settings' },
+            { label: 'Nhật ký hoạt động', route: 'settings.activity-log', module: 'settings' },
         ],
     },
 ];

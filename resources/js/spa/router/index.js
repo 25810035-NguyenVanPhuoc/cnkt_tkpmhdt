@@ -16,6 +16,7 @@ import EmployeesListView from '../pages/employees/list.vue';
 import PromotionsListView from '../pages/promotions/list.vue';
 import RolesListView from '../pages/settings/roles/list.vue';
 import GeneralSettingsView from '../pages/settings/general/form.vue';
+import ActivityLogView from '../pages/settings/activity-log/index.vue';
 import NotFoundView from '../pages/not-found/index.vue';
 
 const router = createRouter({
@@ -88,6 +89,12 @@ const router = createRouter({
                     path: 'settings/general',
                     name: 'settings.general',
                     component: GeneralSettingsView,
+                    meta: { module: 'settings' },
+                },
+                {
+                    path: 'settings/activity-log',
+                    name: 'settings.activity-log',
+                    component: ActivityLogView,
                     meta: { module: 'settings' },
                 },
             ],

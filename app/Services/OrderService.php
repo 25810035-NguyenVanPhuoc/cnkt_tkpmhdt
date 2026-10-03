@@ -26,7 +26,17 @@ class OrderService
     {
         for ($attempt = 1; $attempt <= 3; $attempt++) {
             try {
-                return DB::transaction(fn () => $this->doCreateOrder($data, $actor));
+                $order = DB::transaction(fn () => $this->doCreateOrder($data, $actor));
+
+                ActivityLogger::instance()->logOrderCreated(
+                    $order->code,
+                    $actor->id,
+                    $order->customer_id,
+                    $order->grand_total,
+                    $data['source'] ?? 'admin',
+                );
+
+                return $order;
             } catch (QueryException $e) {
                 if ($attempt === 3 || ! str_contains($e->getMessage(), 'orders_code_unique')) {
                     throw $e;
