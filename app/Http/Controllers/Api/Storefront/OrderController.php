@@ -57,6 +57,7 @@ class OrderController extends Controller
             'customer_phone' => $request->validated('customer_phone'),
             'note' => $request->validated('note'),
             'promotion_code' => $request->validated('promotion_code'),
+            'source' => 'storefront',
             'items' => $items,
         ], $actor);
 
