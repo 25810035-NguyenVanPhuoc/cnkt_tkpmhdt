@@ -73,6 +73,18 @@
         formatMoney: function (n) {
             return Math.round(n).toLocaleString('vi-VN');
         },
+        // Goi sau MOI lan thay doi gio hang (add/remove/setQty/clear). Cap
+        // nhat badge tren header roi phat event 'cart:updated' - bat ky trang
+        // nao dang hien thi gio hang (drawer, trang gio hang, trang thanh
+        // toan) chi can lang nghe event nay de tu ve lai, tranh tung noi tu
+        // goi thang qua lai nhau (de bi sot dong bo hoac lap vo han).
+        notify: function () {
+            var badge = document.querySelector('.js-cart-count');
+            if (badge) {
+                badge.setAttribute('data-notify', Cart.count());
+            }
+            window.dispatchEvent(new CustomEvent('cart:updated'));
+        },
     };
 
     window.Cart = Cart;

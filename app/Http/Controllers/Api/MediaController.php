@@ -33,6 +33,7 @@ class MediaController extends Controller implements HasMiddleware
         $files = MediaFile::query()
             ->when($request->filled('search'), fn ($q) => $q->where('name', 'like', '%'.$request->string('search').'%'))
             ->latest()
+            ->orderByDesc('id')
             ->paginate($request->integer('per_page', 60));
 
         return response()->json(MediaFileResource::collection($files)->response()->getData(true));

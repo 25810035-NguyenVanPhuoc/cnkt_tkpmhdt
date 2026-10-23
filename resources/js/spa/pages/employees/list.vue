@@ -96,6 +96,8 @@ function closeForm() {
     showForm.value = false;
 }
 
+const createdCredential = ref(null);
+
 async function submitForm() {
     saving.value = true;
     formError.value = '';
@@ -109,19 +111,20 @@ async function submitForm() {
         is_active: form.is_active,
     };
 
-    if (form.password) {
-        payload.password = form.password;
-    }
-
     try {
         if (editingId.value) {
+            if (form.password) {
+                payload.password = form.password;
+            }
+
             await apiFetch(
                 `/employees/${editingId.value}`,
                 { method: 'PUT', body: JSON.stringify(payload) },
                 auth.token,
             );
         } else {
-            await apiFetch('/employees', { method: 'POST', body: JSON.stringify(payload) }, auth.token);
+            const res = await apiFetch('/employees', { method: 'POST', body: JSON.stringify(payload) }, auth.token);
+            createdCredential.value = { email: res.data.email, password: res.temp_password };
         }
 
         showForm.value = false;
@@ -166,6 +169,21 @@ onMounted(async () => {
                 @click="openCreate"
             >
                 + Thêm nhân viên
+            </button>
+        </div>
+
+        <div
+            v-if="createdCredential"
+            class="mb-4 flex items-start justify-between gap-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800"
+        >
+            <div>
+                Đã tạo nhân viên <strong>{{ createdCredential.email }}</strong>. Mật khẩu tạm thời:
+                <code class="rounded bg-white px-2 py-0.5 font-mono">{{ createdCredential.password }}</code>
+                — hãy gửi mật khẩu này cho nhân viên ngay, hệ thống sẽ <strong>không hiện lại được</strong>.
+                Nhân viên sẽ bị bắt đổi mật khẩu khi đăng nhập lần đầu.
+            </div>
+            <button type="button" class="shrink-0 text-amber-600 hover:text-amber-900" @click="createdCredential = null">
+                Đóng
             </button>
         </div>
 
@@ -314,16 +332,18 @@ onMounted(async () => {
                         <label class="mb-1 block text-sm text-gray-600">Email</label>
                         <input v-model="form.email" type="email" required class="w-full rounded border border-gray-300 px-3 py-2 text-sm" />
                     </div>
-                    <div class="col-span-2">
+                    <div v-if="editingId" class="col-span-2">
                         <label class="mb-1 block text-sm text-gray-600">
-                            Mật khẩu {{ editingId ? '(để trống nếu không đổi)' : '' }}
+                            Mật khẩu (để trống nếu không đổi — nếu đổi, nhân viên sẽ phải đổi lại ở lần đăng nhập kế tiếp)
                         </label>
                         <input
                             v-model="form.password"
                             type="password"
-                            :required="!editingId"
                             class="w-full rounded border border-gray-300 px-3 py-2 text-sm"
                         />
+                    </div>
+                    <div v-else class="col-span-2 rounded border border-dashed border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-500">
+                        Mật khẩu sẽ được hệ thống tự tạo và hiện ra sau khi lưu — nhân viên sẽ phải đổi mật khẩu khi đăng nhập lần đầu.
                     </div>
                     <div>
                         <label class="mb-1 block text-sm text-gray-600">SĐT</label>

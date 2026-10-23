@@ -32,17 +32,10 @@ document.addEventListener('DOMContentLoaded', function () {
         };
     }
 
-    function updateBadge() {
-        var badge = document.querySelector('.js-cart-count');
-        if (badge) {
-            badge.setAttribute('data-notify', Cart.count());
-        }
-    }
-
     addBtn.addEventListener('click', function () {
         var qty = parseInt(qtyInput.value, 10) || 1;
         Cart.add(readProduct(addBtn), qty);
-        updateBadge();
+        Cart.notify();
 
         if (window.swal) {
             swal('Thành công', 'Đã thêm vào giỏ hàng', 'success');
@@ -53,7 +46,7 @@ document.addEventListener('DOMContentLoaded', function () {
         buyBtn.addEventListener('click', function () {
             var qty = parseInt(qtyInput.value, 10) || 1;
             Cart.add(readProduct(buyBtn), qty);
-            updateBadge();
+            Cart.notify();
             window.location.href = '/cua-hang/gio-hang';
         });
     }

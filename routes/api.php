@@ -35,6 +35,7 @@ Route::prefix('storefront')->name('storefront.')->group(function () {
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/me', [AuthController::class, 'me']);
+    Route::post('/change-password', [AuthController::class, 'changePassword']);
 
     Route::apiResource('categories', CategoryController::class);
 

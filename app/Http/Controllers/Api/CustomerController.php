@@ -32,7 +32,8 @@ class CustomerController extends Controller implements HasMiddleware
                 $q = $request->string('q');
                 $query->where(fn ($w) => $w->where('name', 'like', "%{$q}%")->orWhere('phone', 'like', "%{$q}%"));
             })
-            ->orderBy('name')
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
             ->paginate($request->integer('per_page', 15));
 
         return response()->json(CustomerResource::collection($customers)->response()->getData(true));
@@ -47,7 +48,12 @@ class CustomerController extends Controller implements HasMiddleware
 
     public function show(Customer $customer): JsonResponse
     {
-        return response()->json(['data' => new CustomerResource($customer->loadCount('orders'))]);
+        $customer->loadCount('orders');
+        $customer->load(['orders' => function ($query) {
+            $query->with('warehouse')->latest('order_date')->limit(20);
+        }]);
+
+        return response()->json(['data' => new CustomerResource($customer)]);
     }
 
     public function update(UpdateCustomerRequest $request, Customer $customer): JsonResponse
