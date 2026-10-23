@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\Storefront;
 
 use App\Enums\ProductUnitStatus;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\StorefrontPreviewPromotionRequest;
 use App\Http\Requests\StorefrontStoreOrderRequest;
 use App\Http\Resources\OrderResource;
 use App\Models\Product;
@@ -12,6 +13,7 @@ use App\Models\User;
 use App\Models\Warehouse;
 use App\Services\OrderService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\ValidationException;
 
 class OrderController extends Controller
@@ -51,8 +53,16 @@ class OrderController extends Controller
             return $item;
         })->all();
 
+        // Neu khach DA dang nhap (route nay duoc goi tu web.php - co session),
+        // dung thang customer_id cua tai khoan dang nhap de gan don hang -
+        // KHONG phu thuoc vao viec SDT nhap tren form co khop chinh xac hay
+        // khong (vd form cu bi cache, hoac NV chinh sua o input truoc khi
+        // gui). Khach vang lai (chua dang nhap) van resolve theo SDT nhu cu.
+        $authCustomer = Auth::guard('customer')->user();
+
         $order = $this->orders->createOrder([
             'warehouse_id' => $warehouse->id,
+            'customer_id' => $authCustomer?->id,
             'customer_name' => $request->validated('customer_name'),
             'customer_phone' => $request->validated('customer_phone'),
             'note' => $request->validated('note'),
@@ -70,5 +80,22 @@ class OrderController extends Controller
         return response()->json([
             'data' => new OrderResource($order->fresh(['items.product', 'items.productUnit', 'customer', 'warehouse'])),
         ], 201);
+    }
+
+    /**
+     * Xem truoc giam gia khi khach go ma khuyen mai o trang thanh toan
+     * (nut "Ap dung") - khong tao don, chi tinh thu de hien thi lai tong tien.
+     */
+    public function previewPromotion(StorefrontPreviewPromotionRequest $request): JsonResponse
+    {
+        $customer = Auth::guard('customer')->user();
+
+        $result = $this->orders->previewPromotion(
+            $request->validated('items'),
+            $request->validated('promotion_code'),
+            $customer,
+        );
+
+        return response()->json(['data' => $result]);
     }
 }

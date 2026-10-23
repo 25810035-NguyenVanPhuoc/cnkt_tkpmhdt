@@ -34,6 +34,7 @@ class PurchaseOrderController extends Controller implements HasMiddleware
             ->when($request->filled('warehouse_id'), fn ($q) => $q->where('warehouse_id', $request->integer('warehouse_id')))
             ->when($request->filled('supplier_id'), fn ($q) => $q->where('supplier_id', $request->integer('supplier_id')))
             ->latest('order_date')
+            ->orderByDesc('id')
             ->paginate($request->integer('per_page', 15));
 
         return response()->json(PurchaseOrderResource::collection($purchaseOrders)->response()->getData(true));

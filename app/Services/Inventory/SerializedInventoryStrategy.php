@@ -5,6 +5,7 @@ namespace App\Services\Inventory;
 use App\Enums\ProductUnitStatus;
 use App\Enums\StockMovementType;
 use App\Models\Product;
+use App\Models\ProductStock;
 use App\Models\ProductUnit;
 use App\Models\StockMovement;
 use App\Models\Warehouse;
@@ -14,6 +15,11 @@ use Illuminate\Validation\ValidationException;
  * Chiến lược tồn kho cho sản phẩm quản lý theo TỪNG ĐƠN VỊ / SERIAL-IMEI
  * (is_serialized = true), dùng bảng product_units. Mỗi lệnh gọi reserve()
  * xử lý đúng 1 unit (khớp với việc OrderService tạo 1 OrderItem/unit).
+ *
+ * Đồng thời đồng bộ tổng số lượng "in_stock" vào bảng product_stock (cùng
+ * bảng mà BulkInventoryStrategy dùng), để StockController::index (tab "Tồn
+ * kho theo số lượng") hiển thị đúng cho CẢ sản phẩm serial lẫn sản phẩm
+ * thường trong cùng một danh sách, không cần tab Serial/IMEI riêng.
  */
 class SerializedInventoryStrategy implements InventoryStrategy
 {
@@ -35,6 +41,7 @@ class SerializedInventoryStrategy implements InventoryStrategy
         }
 
         $unit->update(['status' => ProductUnitStatus::Reserved]);
+        $this->adjustStockCount($product, $warehouse, -1);
 
         $this->recordMovement($product, $warehouse, -1, $unit->id, $context, StockMovementType::Out);
 
@@ -51,6 +58,7 @@ class SerializedInventoryStrategy implements InventoryStrategy
             'status' => ProductUnitStatus::InStock,
             'order_item_id' => null,
         ]);
+        $this->adjustStockCount($product, $warehouse, 1);
 
         $this->recordMovement($product, $warehouse, 1, $productUnitId, $context, StockMovementType::In);
     }
@@ -74,6 +82,10 @@ class SerializedInventoryStrategy implements InventoryStrategy
 
             $this->recordMovement($product, $warehouse, 1, $unit->id, $context, StockMovementType::In);
         }
+
+        if (count($imeiSerials) > 0) {
+            $this->adjustStockCount($product, $warehouse, count($imeiSerials));
+        }
     }
 
     public function adjust(Product $product, Warehouse $warehouse, array $payload, array $context): array
@@ -95,6 +107,13 @@ class SerializedInventoryStrategy implements InventoryStrategy
 
         $before = $unit->status->value;
         $unit->update(['status' => $payload['status']]);
+
+        // in_stock -> damaged: mat 1 don vi kha dung; damaged -> in_stock: nguoc lai.
+        if ($before === ProductUnitStatus::InStock->value && $payload['status'] === ProductUnitStatus::Damaged->value) {
+            $this->adjustStockCount($product, $warehouse, -1);
+        } elseif ($before === ProductUnitStatus::Damaged->value && $payload['status'] === ProductUnitStatus::InStock->value) {
+            $this->adjustStockCount($product, $warehouse, 1);
+        }
 
         $this->recordMovement($product, $warehouse, 0, $unit->id, [...$context, 'note' => ($context['note'] ?? null) ?: "Đổi trạng thái: {$before} → {$payload['status']}"], StockMovementType::Adjustment);
 
@@ -123,6 +142,30 @@ class SerializedInventoryStrategy implements InventoryStrategy
 
             $this->recordMovement($product, $from, -1, $unit->id, [...$context, 'note' => $note], StockMovementType::Transfer);
             $this->recordMovement($product, $to, 1, $unit->id, [...$context, 'note' => $note], StockMovementType::Transfer);
+        }
+
+        if ($units->count() > 0) {
+            $this->adjustStockCount($product, $from, -$units->count());
+            $this->adjustStockCount($product, $to, $units->count());
+        }
+    }
+
+    /**
+     * Dong bo tong so luong "in_stock" vao product_stock.quantity - cung
+     * ban ghi ma BulkInventoryStrategy dung, de tab "Ton kho theo so luong"
+     * hien dung cho ca san pham serial.
+     */
+    private function adjustStockCount(Product $product, Warehouse $warehouse, int $delta): void
+    {
+        $stock = ProductStock::firstOrCreate(
+            ['product_id' => $product->id, 'warehouse_id' => $warehouse->id],
+            ['quantity' => 0],
+        );
+
+        if ($delta > 0) {
+            $stock->increment('quantity', $delta);
+        } elseif ($delta < 0) {
+            $stock->decrement('quantity', min(abs($delta), $stock->quantity));
         }
     }
 

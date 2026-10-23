@@ -27,7 +27,7 @@ class WarehouseController extends Controller implements HasMiddleware
 
     public function index(Request $request): JsonResponse
     {
-        $warehouses = Warehouse::query()->orderBy('name')->paginate($request->integer('per_page', 15));
+        $warehouses = Warehouse::query()->orderByDesc('created_at')->orderByDesc('id')->paginate($request->integer('per_page', 15));
 
         return response()->json(WarehouseResource::collection($warehouses)->response()->getData(true));
     }

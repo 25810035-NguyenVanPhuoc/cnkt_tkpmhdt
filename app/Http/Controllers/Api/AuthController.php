@@ -55,6 +55,21 @@ class AuthController extends Controller
         return response()->json($this->formatUser($request->user()));
     }
 
+    public function changePassword(Request $request)
+    {
+        $validated = $request->validate([
+            'password' => ['required', 'string', 'min:6', 'confirmed'],
+        ]);
+
+        $user = $request->user();
+        $user->update([
+            'password' => $validated['password'],
+            'must_change_password' => false,
+        ]);
+
+        return response()->json(['message' => 'Đã đổi mật khẩu thành công.']);
+    }
+
     private function formatUser(User $user): array
     {
         return [
@@ -63,6 +78,7 @@ class AuthController extends Controller
             'email' => $user->email,
             'roles' => $user->getRoleNames(),
             'permissions' => $user->getAllPermissions()->pluck('name'),
+            'must_change_password' => $user->must_change_password,
         ];
     }
 }

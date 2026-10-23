@@ -34,7 +34,8 @@ class ProductController extends Controller implements HasMiddleware
             })
             ->when($request->filled('category_id'), fn ($query) => $query->where('category_id', $request->integer('category_id')))
             ->when($request->filled('is_active'), fn ($query) => $query->where('is_active', $request->boolean('is_active')))
-            ->orderBy('name')
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
             ->paginate($request->integer('per_page', 15));
 
         return response()->json(ProductResource::collection($products)->response()->getData(true));

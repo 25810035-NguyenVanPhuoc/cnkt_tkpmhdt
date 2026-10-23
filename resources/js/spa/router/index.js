@@ -5,6 +5,7 @@ import BlankLayout from '../layouts/blank-layout.vue';
 import DefaultLayout from '../layouts/default-layout.vue';
 
 import LoginView from '../pages/auth/login.vue';
+import ChangePasswordView from '../pages/auth/change-password.vue';
 import DashboardView from '../pages/dashboard/index.vue';
 import SalesListView from '../pages/sales/list.vue';
 import ProductsListView from '../pages/catalog/products/list.vue';
@@ -27,6 +28,12 @@ const router = createRouter({
             component: BlankLayout,
             children: [
                 { path: 'login', name: 'login', component: LoginView, meta: { guestOnly: true } },
+                {
+                    path: 'change-password',
+                    name: 'change-password',
+                    component: ChangePasswordView,
+                    meta: { requiresAuth: true },
+                },
             ],
         },
         {
@@ -122,6 +129,11 @@ router.beforeEach(async (to) => {
             auth.logout();
             return { name: 'login', query: { redirect: to.fullPath } };
         }
+    }
+
+    if (auth.user?.must_change_password) {
+        if (to.name !== 'change-password') return { name: 'change-password' };
+        return true;
     }
 
     const module = to.meta.module;
