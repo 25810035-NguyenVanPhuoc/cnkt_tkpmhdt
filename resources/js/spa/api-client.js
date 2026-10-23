@@ -36,9 +36,17 @@ export async function apiFetch(path, options = {}, token) {
     const data = isJson ? await res.json() : null;
 
     if (!res.ok) {
-        const error = new Error(data?.message || 'Request failed');
+        // Laravel tra loi validate (422) voi 'message' CHUNG CHUNG ("The
+        // given data was invalid.") va noi dung that su nam trong
+        // 'errors.<field>[0]'. Code khap noi trong SPA nay deu doc
+        // `e.data?.message` de hien thi - nen ghi de thang vao data.message
+        // de moi noi tu dong hien dung loi cu the, khong can sua tung cho.
+        const firstFieldError = data?.errors ? Object.values(data.errors)[0]?.[0] : null;
+        const patchedData = firstFieldError ? { ...data, message: firstFieldError } : data;
+
+        const error = new Error(firstFieldError || data?.message || 'Request failed');
         error.status = res.status;
-        error.data = data;
+        error.data = patchedData;
         throw error;
     }
 

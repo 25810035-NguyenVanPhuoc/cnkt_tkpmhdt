@@ -38,6 +38,8 @@ class StockController extends Controller implements HasMiddleware
             ->with(['product', 'warehouse'])
             ->when($request->filled('product_id'), fn ($q) => $q->where('product_id', $request->integer('product_id')))
             ->when($request->filled('warehouse_id'), fn ($q) => $q->where('warehouse_id', $request->integer('warehouse_id')))
+            ->orderByDesc('updated_at')
+            ->orderByDesc('id')
             ->paginate($request->integer('per_page', 15));
 
         return response()->json(ProductStockResource::collection($stocks)->response()->getData(true));
@@ -51,6 +53,7 @@ class StockController extends Controller implements HasMiddleware
             ->when($request->filled('warehouse_id'), fn ($q) => $q->where('warehouse_id', $request->integer('warehouse_id')))
             ->when($request->filled('type'), fn ($q) => $q->where('type', $request->string('type')))
             ->latest()
+            ->orderByDesc('id')
             ->paginate($request->integer('per_page', 20));
 
         return response()->json(StockMovementResource::collection($movements)->response()->getData(true));

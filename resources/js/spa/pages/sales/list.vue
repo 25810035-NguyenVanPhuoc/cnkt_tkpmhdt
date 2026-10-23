@@ -40,13 +40,21 @@ function productLabel(id) {
 }
 
 async function loadWarehouses() {
-    const res = await apiFetch('/warehouses?per_page=100', {}, auth.token);
-    warehouses.value = res.data || [];
+    try {
+        const res = await apiFetch('/warehouses?per_page=100', {}, auth.token);
+        warehouses.value = res.data || [];
+    } catch (e) {
+        pageError.value = e.data?.message || 'Không tải được danh sách kho.';
+    }
 }
 
 async function loadProducts() {
-    const res = await apiFetch('/products?per_page=200&is_active=1', {}, auth.token);
-    products.value = res.data || [];
+    try {
+        const res = await apiFetch('/products?per_page=200&is_active=1', {}, auth.token);
+        products.value = res.data || [];
+    } catch (e) {
+        pageError.value = e.data?.message || 'Không tải được danh sách sản phẩm.';
+    }
 }
 
 async function loadOrders(page = 1) {
@@ -65,7 +73,7 @@ async function loadOrders(page = 1) {
 }
 
 // ---------- tạo đơn hàng ----------
-const orderForm = reactive({ warehouse_id: '', customer_phone: '', customer_name: '', shipping_fee: 0, note: '' });
+const orderForm = reactive({ warehouse_id: '', customer_phone: '', customer_name: '', shipping_fee: 0, note: '', promotion_code: '' });
 const items = ref([emptyItem()]);
 const createError = ref('');
 const creating = ref(false);
@@ -116,6 +124,7 @@ async function submitOrder() {
             customer_name: orderForm.customer_name || undefined,
             shipping_fee: Number(orderForm.shipping_fee || 0),
             note: orderForm.note || null,
+            promotion_code: orderForm.promotion_code || undefined,
             items: items.value.map((item) => {
                 const base = { product_id: Number(item.product_id), discount_amount: Number(item.discount_amount || 0) };
                 if (isSerialized(item.product_id)) {
@@ -127,7 +136,7 @@ async function submitOrder() {
 
         await apiFetch('/orders', { method: 'POST', body: JSON.stringify(payload) }, auth.token);
 
-        Object.assign(orderForm, { customer_phone: '', customer_name: '', shipping_fee: 0, note: '' });
+        Object.assign(orderForm, { customer_phone: '', customer_name: '', shipping_fee: 0, note: '', promotion_code: '' });
         items.value = [emptyItem()];
         await loadOrders();
     } catch (e) {
@@ -212,7 +221,7 @@ async function submitPayment(order) {
 }
 
 onMounted(async () => {
-    await Promise.all([loadWarehouses(), loadProducts()]);
+    await Promise.allSettled([loadWarehouses(), loadProducts()]);
     loadOrders();
 });
 </script>
@@ -249,6 +258,10 @@ onMounted(async () => {
                 <div>
                     <label class="mb-1 block text-sm text-gray-600">Phí vận chuyển</label>
                     <input v-model.number="orderForm.shipping_fee" type="number" min="0" class="w-full rounded border border-gray-300 px-3 py-2 text-sm" />
+                </div>
+                <div>
+                    <label class="mb-1 block text-sm text-gray-600">Mã khuyến mãi (nếu có)</label>
+                    <input v-model="orderForm.promotion_code" placeholder="VD: SALE10" class="w-full rounded border border-gray-300 px-3 py-2 text-sm" />
                 </div>
             </div>
 
@@ -358,7 +371,7 @@ onMounted(async () => {
                     <template v-for="order in orders" :key="order.id">
                         <tr class="cursor-pointer border-b border-gray-100 hover:bg-gray-50" @click="toggleDetail(order)">
                             <td class="px-4 py-2 font-mono text-gray-700">{{ order.code }}</td>
-                            <td class="px-4 py-2 text-gray-600">{{ order.customer?.name || 'Khách vãng lai' }}</td>
+                            <td class="px-4 py-2 text-gray-600">{{ order.shipping_name || order.customer?.name || 'Khách vãng lai' }}</td>
                             <td class="px-4 py-2 text-gray-600">{{ order.warehouse?.name }}</td>
                             <td class="px-4 py-2">
                                 <span class="rounded bg-gray-100 px-2 py-0.5 text-xs text-gray-700">{{ STATUS_LABEL[order.status] }}</span>
@@ -372,6 +385,15 @@ onMounted(async () => {
                             <td colspan="8" class="border-b border-gray-100 bg-gray-50 px-4 py-4">
                                 <div v-if="detailLoading">Đang tải chi tiết...</div>
                                 <div v-else-if="orderDetail">
+                                    <div class="mb-3 rounded border border-gray-200 bg-white p-3 text-sm">
+                                        <div class="mb-1 text-xs font-medium text-gray-500">Thông tin người nhận</div>
+                                        <div class="grid grid-cols-3 gap-2">
+                                            <div><span class="text-gray-500">Họ tên:</span> {{ orderDetail.shipping_name || orderDetail.customer?.name || 'Khách vãng lai' }}</div>
+                                            <div><span class="text-gray-500">Điện thoại:</span> {{ orderDetail.shipping_phone || orderDetail.customer?.phone || '—' }}</div>
+                                            <div><span class="text-gray-500">Địa chỉ:</span> {{ orderDetail.shipping_address || '—' }}</div>
+                                        </div>
+                                    </div>
+
                                     <table class="mb-3 w-full text-sm">
                                         <thead class="text-left text-gray-500">
                                             <tr>

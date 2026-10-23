@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\Customer;
 use App\Models\User;
 
 return [
@@ -42,6 +43,15 @@ return [
             'driver' => 'session',
             'provider' => 'users',
         ],
+
+        // Guard rieng cho khach hang dang nhap tren Storefront (khac voi
+        // 'web' dung cho nhan vien/Admin SPA qua Sanctum) - session rieng
+        // biet de 1 trinh duyet co the vua dang nhap Admin vua dang nhap
+        // Storefront ma khong dam vao nhau.
+        'customer' => [
+            'driver' => 'session',
+            'provider' => 'customers',
+        ],
     ],
 
     /*
@@ -65,6 +75,11 @@ return [
         'users' => [
             'driver' => 'eloquent',
             'model' => env('AUTH_MODEL', User::class),
+        ],
+
+        'customers' => [
+            'driver' => 'eloquent',
+            'model' => Customer::class,
         ],
 
         // 'users' => [

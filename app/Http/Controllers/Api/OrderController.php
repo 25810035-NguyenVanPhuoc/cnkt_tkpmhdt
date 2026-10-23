@@ -37,6 +37,7 @@ class OrderController extends Controller implements HasMiddleware
             ->when($request->filled('warehouse_id'), fn ($q) => $q->where('warehouse_id', $request->integer('warehouse_id')))
             ->when($request->filled('customer_id'), fn ($q) => $q->where('customer_id', $request->integer('customer_id')))
             ->latest('order_date')
+            ->orderByDesc('id')
             ->paginate($request->integer('per_page', 15));
 
         return response()->json(OrderResource::collection($orders)->response()->getData(true));

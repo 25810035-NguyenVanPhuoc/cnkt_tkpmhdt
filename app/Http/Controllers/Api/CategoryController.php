@@ -30,7 +30,8 @@ class CategoryController extends Controller implements HasMiddleware
         $categories = Category::query()
             ->when($request->filled('q'), fn ($query) => $query->where('name', 'like', '%'.$request->string('q').'%'))
             ->when($request->filled('is_active'), fn ($query) => $query->where('is_active', $request->boolean('is_active')))
-            ->orderBy('name')
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
             ->paginate($request->integer('per_page', 15));
 
         return response()->json(CategoryResource::collection($categories)->response()->getData(true));

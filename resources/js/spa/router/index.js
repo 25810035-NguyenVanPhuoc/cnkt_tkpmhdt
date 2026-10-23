@@ -5,6 +5,7 @@ import BlankLayout from '../layouts/blank-layout.vue';
 import DefaultLayout from '../layouts/default-layout.vue';
 
 import LoginView from '../pages/auth/login.vue';
+import ChangePasswordView from '../pages/auth/change-password.vue';
 import DashboardView from '../pages/dashboard/index.vue';
 import SalesListView from '../pages/sales/list.vue';
 import ProductsListView from '../pages/catalog/products/list.vue';
@@ -16,6 +17,7 @@ import EmployeesListView from '../pages/employees/list.vue';
 import PromotionsListView from '../pages/promotions/list.vue';
 import RolesListView from '../pages/settings/roles/list.vue';
 import GeneralSettingsView from '../pages/settings/general/form.vue';
+import ActivityLogView from '../pages/settings/activity-log/index.vue';
 import NotFoundView from '../pages/not-found/index.vue';
 
 const router = createRouter({
@@ -26,6 +28,12 @@ const router = createRouter({
             component: BlankLayout,
             children: [
                 { path: 'login', name: 'login', component: LoginView, meta: { guestOnly: true } },
+                {
+                    path: 'change-password',
+                    name: 'change-password',
+                    component: ChangePasswordView,
+                    meta: { requiresAuth: true },
+                },
             ],
         },
         {
@@ -90,6 +98,12 @@ const router = createRouter({
                     component: GeneralSettingsView,
                     meta: { module: 'settings' },
                 },
+                {
+                    path: 'settings/activity-log',
+                    name: 'settings.activity-log',
+                    component: ActivityLogView,
+                    meta: { module: 'settings' },
+                },
             ],
         },
         { path: '/:pathMatch(.*)*', name: 'not-found', component: NotFoundView },
@@ -115,6 +129,11 @@ router.beforeEach(async (to) => {
             auth.logout();
             return { name: 'login', query: { redirect: to.fullPath } };
         }
+    }
+
+    if (auth.user?.must_change_password) {
+        if (to.name !== 'change-password') return { name: 'change-password' };
+        return true;
     }
 
     const module = to.meta.module;

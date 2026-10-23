@@ -22,6 +22,7 @@ class StoreOrderRequest extends FormRequest
             'customer_name' => ['nullable', 'string', 'max:255'],
             'shipping_fee' => ['sometimes', 'integer', 'min:0'],
             'note' => ['nullable', 'string', 'max:255'],
+            'promotion_code' => ['nullable', 'string', 'max:255'],
             'items' => ['required', 'array', 'min:1'],
             'items.*.product_id' => ['required', 'integer', 'exists:products,id'],
             'items.*.quantity' => ['required', 'integer', 'min:1'],

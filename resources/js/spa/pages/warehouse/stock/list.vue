@@ -16,10 +16,6 @@ const stockRows = ref([]);
 const stockMeta = ref(null);
 const stockFilters = reactive({ warehouse_id: '', product_id: '' });
 
-const unitRows = ref([]);
-const unitMeta = ref(null);
-const unitFilters = reactive({ warehouse_id: '', product_id: '', status: '', imei_serial: '' });
-
 const moveRows = ref([]);
 const moveMeta = ref(null);
 const moveFilters = reactive({ warehouse_id: '', product_id: '', type: '' });
@@ -65,21 +61,6 @@ async function loadStock(page = 1) {
     }
 }
 
-async function loadUnits(page = 1) {
-    loading.value = true;
-    pageError.value = '';
-    try {
-        const qs = buildQuery({ ...unitFilters, page });
-        const res = await apiFetch(`/product-units${qs}`, {}, auth.token);
-        unitRows.value = res.data || [];
-        unitMeta.value = res.meta || null;
-    } catch (e) {
-        pageError.value = e.data?.message || 'Không tải được danh sách serial/IMEI.';
-    } finally {
-        loading.value = false;
-    }
-}
-
 async function loadMovements(page = 1) {
     loading.value = true;
     pageError.value = '';
@@ -97,7 +78,6 @@ async function loadMovements(page = 1) {
 
 function reloadActiveTab(page = 1) {
     if (activeTab.value === 'stock') loadStock(page);
-    else if (activeTab.value === 'units') loadUnits(page);
     else loadMovements(page);
 }
 
@@ -262,13 +242,6 @@ onMounted(async () => {
             </button>
             <button
                 class="px-3 py-2 text-sm"
-                :class="activeTab === 'units' ? 'border-b-2 border-gray-800 font-medium text-gray-900' : 'text-gray-500'"
-                @click="activeTab = 'units'"
-            >
-                Serial / IMEI
-            </button>
-            <button
-                class="px-3 py-2 text-sm"
                 :class="activeTab === 'movements' ? 'border-b-2 border-gray-800 font-medium text-gray-900' : 'text-gray-500'"
                 @click="activeTab = 'movements'"
             >
@@ -311,56 +284,26 @@ onMounted(async () => {
                     </tbody>
                 </table>
             </div>
-        </div>
-
-        <!-- Serial / IMEI -->
-        <div v-if="activeTab === 'units'">
-            <div class="mb-3 flex flex-wrap gap-2">
-                <select v-model="unitFilters.warehouse_id" class="rounded border border-gray-300 px-3 py-2 text-sm" @change="loadUnits()">
-                    <option value="">Tất cả kho</option>
-                    <option v-for="w in warehouses" :key="w.id" :value="w.id">{{ w.name }}</option>
-                </select>
-                <select v-model="unitFilters.product_id" class="rounded border border-gray-300 px-3 py-2 text-sm" @change="loadUnits()">
-                    <option value="">Tất cả sản phẩm</option>
-                    <option v-for="p in products" :key="p.id" :value="p.id">{{ p.sku }} — {{ p.name }}</option>
-                </select>
-                <select v-model="unitFilters.status" class="rounded border border-gray-300 px-3 py-2 text-sm" @change="loadUnits()">
-                    <option value="">Tất cả trạng thái</option>
-                    <option value="in_stock">Trong kho</option>
-                    <option value="reserved">Đã giữ chỗ</option>
-                    <option value="sold">Đã bán</option>
-                    <option value="returned">Đã trả</option>
-                    <option value="damaged">Hỏng</option>
-                </select>
-                <input
-                    v-model="unitFilters.imei_serial"
-                    placeholder="Tìm IMEI/serial..."
-                    class="rounded border border-gray-300 px-3 py-2 text-sm"
-                    @keyup.enter="loadUnits()"
-                />
-            </div>
-            <div class="overflow-x-auto rounded-lg border border-gray-200 bg-white">
-                <table class="w-full text-sm">
-                    <thead class="border-b border-gray-200 bg-gray-50 text-left text-gray-500">
-                        <tr>
-                            <th class="px-4 py-2">IMEI / Serial</th>
-                            <th class="px-4 py-2">Sản phẩm</th>
-                            <th class="px-4 py-2">Kho</th>
-                            <th class="px-4 py-2">Trạng thái</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr v-if="!loading && !unitRows.length">
-                            <td colspan="4" class="px-4 py-6 text-center text-gray-400">Chưa có dữ liệu.</td>
-                        </tr>
-                        <tr v-for="u in unitRows" :key="u.id" class="border-b border-gray-100">
-                            <td class="px-4 py-2 font-mono text-gray-600">{{ u.imei_serial }}</td>
-                            <td class="px-4 py-2">{{ u.product?.sku }} — {{ u.product?.name }}</td>
-                            <td class="px-4 py-2 text-gray-600">{{ u.warehouse?.name }}</td>
-                            <td class="px-4 py-2 text-gray-600">{{ u.status }}</td>
-                        </tr>
-                    </tbody>
-                </table>
+            <div v-if="stockMeta && stockMeta.last_page > 1" class="mt-3 flex items-center justify-between text-sm text-gray-600">
+                <span>Trang {{ stockMeta.current_page }} / {{ stockMeta.last_page }} (tổng {{ stockMeta.total }} dòng)</span>
+                <div class="flex gap-2">
+                    <button
+                        type="button"
+                        class="rounded border border-gray-300 px-3 py-1 disabled:opacity-40"
+                        :disabled="stockMeta.current_page <= 1"
+                        @click="loadStock(stockMeta.current_page - 1)"
+                    >
+                        ‹ Trước
+                    </button>
+                    <button
+                        type="button"
+                        class="rounded border border-gray-300 px-3 py-1 disabled:opacity-40"
+                        :disabled="stockMeta.current_page >= stockMeta.last_page"
+                        @click="loadStock(stockMeta.current_page + 1)"
+                    >
+                        Sau ›
+                    </button>
+                </div>
             </div>
         </div>
 
@@ -411,6 +354,27 @@ onMounted(async () => {
                         </tr>
                     </tbody>
                 </table>
+            </div>
+            <div v-if="moveMeta && moveMeta.last_page > 1" class="mt-3 flex items-center justify-between text-sm text-gray-600">
+                <span>Trang {{ moveMeta.current_page }} / {{ moveMeta.last_page }} (tổng {{ moveMeta.total }} dòng)</span>
+                <div class="flex gap-2">
+                    <button
+                        type="button"
+                        class="rounded border border-gray-300 px-3 py-1 disabled:opacity-40"
+                        :disabled="moveMeta.current_page <= 1"
+                        @click="loadMovements(moveMeta.current_page - 1)"
+                    >
+                        ‹ Trước
+                    </button>
+                    <button
+                        type="button"
+                        class="rounded border border-gray-300 px-3 py-1 disabled:opacity-40"
+                        :disabled="moveMeta.current_page >= moveMeta.last_page"
+                        @click="loadMovements(moveMeta.current_page + 1)"
+                    >
+                        Sau ›
+                    </button>
+                </div>
             </div>
         </div>
 

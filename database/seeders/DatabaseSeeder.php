@@ -62,7 +62,7 @@ class DatabaseSeeder extends Seeder
         $salesStaffRole = Role::firstOrCreate(['name' => 'sales_staff', 'guard_name' => 'web']);
         $salesStaffRole->syncPermissions([
             'sales.view', 'sales.create', 'sales.update',
-            'products.view', 'categories.view',
+            'products.view', 'categories.view', 'warehouse.view',
         ]);
 
         $warehouseStaffRole = Role::firstOrCreate(['name' => 'warehouse_staff', 'guard_name' => 'web']);
