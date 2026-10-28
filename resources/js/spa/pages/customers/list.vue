@@ -21,6 +21,48 @@ const saving = ref(false);
 const emptyForm = () => ({ name: '', phone: '', email: '', address: '', loyalty_points: 0 });
 const form = reactive(emptyForm());
 
+const showDetail = ref(false);
+const detailCustomer = ref(null);
+const detailLoading = ref(false);
+const detailError = ref('');
+
+const STATUS_LABEL = {
+    new: 'Mới',
+    pending: 'Chờ xử lý',
+    confirmed: 'Đã xác nhận',
+    completed: 'Hoàn tất',
+    cancelled: 'Đã huỷ',
+};
+
+function formatVnd(v) {
+    return new Intl.NumberFormat('vi-VN').format(v || 0) + ' đ';
+}
+
+function formatDateTime(v) {
+    if (!v) return '—';
+    return new Date(v).toLocaleString('vi-VN');
+}
+
+async function openDetail(customer) {
+    showDetail.value = true;
+    detailLoading.value = true;
+    detailError.value = '';
+    detailCustomer.value = null;
+    try {
+        const res = await apiFetch(`/customers/${customer.id}`, {}, auth.token);
+        detailCustomer.value = res.data;
+    } catch (e) {
+        detailError.value = e.data?.message || 'Không tải được chi tiết khách hàng.';
+    } finally {
+        detailLoading.value = false;
+    }
+}
+
+function closeDetail() {
+    showDetail.value = false;
+    detailCustomer.value = null;
+}
+
 async function loadCustomers(page = 1) {
     loading.value = true;
     listError.value = '';
@@ -163,6 +205,17 @@ onMounted(() => {
                                 <button
                                     type="button"
                                     class="flex h-8 w-8 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-800"
+                                    title="Xem chi tiết"
+                                    @click="openDetail(c)"
+                                >
+                                    <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                    </svg>
+                                </button>
+                                <button
+                                    type="button"
+                                    class="flex h-8 w-8 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-800"
                                     title="Sửa"
                                     @click="openEdit(c)"
                                 >
@@ -261,6 +314,77 @@ onMounted(() => {
                     </button>
                 </div>
             </form>
+        </div>
+
+        <div v-if="showDetail" class="fixed inset-0 z-20 flex items-center justify-center bg-black/30 p-4">
+            <div class="max-h-[85vh] w-full max-w-2xl overflow-y-auto rounded-lg bg-white p-6 shadow-lg">
+                <div class="mb-4 flex items-center justify-between">
+                    <h2 class="text-base font-semibold text-gray-800">Chi tiết khách hàng</h2>
+                    <button
+                        type="button"
+                        class="flex h-8 w-8 items-center justify-center rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                        aria-label="Đóng"
+                        @click="closeDetail"
+                    >
+                        <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+
+                <div v-if="detailLoading" class="py-6 text-center text-gray-400">Đang tải...</div>
+                <p v-else-if="detailError" class="text-sm text-red-600">{{ detailError }}</p>
+                <div v-else-if="detailCustomer">
+                    <div class="mb-4 rounded border border-gray-200 bg-gray-50 p-3 text-sm">
+                        <div class="grid grid-cols-2 gap-x-4 gap-y-2">
+                            <div><span class="text-gray-500">Tên khách hàng:</span> <span class="font-medium text-gray-800">{{ detailCustomer.name }}</span></div>
+                            <div><span class="text-gray-500">SĐT:</span> <span class="font-mono">{{ detailCustomer.phone }}</span></div>
+                            <div><span class="text-gray-500">Email:</span> {{ detailCustomer.email || '—' }}</div>
+                            <div><span class="text-gray-500">Điểm tích luỹ:</span> {{ detailCustomer.loyalty_points }}</div>
+                            <div class="col-span-2"><span class="text-gray-500">Địa chỉ:</span> {{ detailCustomer.address || '—' }}</div>
+                            <div><span class="text-gray-500">Tổng số đơn:</span> {{ detailCustomer.orders_count ?? 0 }}</div>
+                            <div><span class="text-gray-500">Khách hàng từ:</span> {{ formatDateTime(detailCustomer.created_at) }}</div>
+                        </div>
+                    </div>
+
+                    <div class="mb-2 text-sm font-medium text-gray-700">
+                        Lịch sử mua hàng (gần nhất {{ detailCustomer.orders?.length || 0 }} đơn)
+                    </div>
+                    <div class="overflow-x-auto rounded-lg border border-gray-200">
+                        <table class="w-full text-sm">
+                            <thead class="border-b border-gray-200 bg-gray-50 text-left text-gray-500">
+                                <tr>
+                                    <th class="px-3 py-2">Mã đơn</th>
+                                    <th class="px-3 py-2">Kho</th>
+                                    <th class="px-3 py-2">Trạng thái</th>
+                                    <th class="px-3 py-2">Tổng tiền</th>
+                                    <th class="px-3 py-2">Ngày đặt</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr v-if="!detailCustomer.orders?.length">
+                                    <td colspan="5" class="px-3 py-4 text-center text-gray-400">Khách hàng chưa có đơn hàng nào.</td>
+                                </tr>
+                                <tr v-for="o in detailCustomer.orders" :key="o.id" class="border-b border-gray-100">
+                                    <td class="px-3 py-2 font-mono text-gray-700">{{ o.code }}</td>
+                                    <td class="px-3 py-2 text-gray-600">{{ o.warehouse?.name || '—' }}</td>
+                                    <td class="px-3 py-2">
+                                        <span class="rounded bg-gray-100 px-2 py-0.5 text-xs text-gray-700">{{ STATUS_LABEL[o.status] || o.status }}</span>
+                                    </td>
+                                    <td class="px-3 py-2 font-medium text-gray-800">{{ formatVnd(o.grand_total) }}</td>
+                                    <td class="px-3 py-2 text-gray-500">{{ formatDateTime(o.order_date) }}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="mt-5 flex justify-end">
+                    <button type="button" class="rounded border border-gray-300 px-3 py-2 text-sm" @click="closeDetail">
+                        Đóng
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
 </template>

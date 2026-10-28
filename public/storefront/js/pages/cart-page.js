@@ -33,11 +33,6 @@ document.addEventListener('DOMContentLoaded', function () {
         });
 
         totalEl.textContent = Cart.formatMoney(Cart.amount());
-
-        var badge = document.querySelector('.js-cart-count');
-        if (badge) {
-            badge.setAttribute('data-notify', Cart.count());
-        }
     }
 
     tbody.addEventListener('change', function (e) {
@@ -45,7 +40,7 @@ document.addEventListener('DOMContentLoaded', function () {
             var id = Number(e.target.dataset.id);
             var qty = parseInt(e.target.value, 10) || 1;
             Cart.setQty(id, qty);
-            render();
+            Cart.notify();
         }
     });
 
@@ -54,15 +49,20 @@ document.addEventListener('DOMContentLoaded', function () {
         if (btn) {
             e.preventDefault();
             Cart.remove(Number(btn.dataset.id));
-            render();
+            Cart.notify();
         }
     });
 
     clearBtn.addEventListener('click', function (e) {
         e.preventDefault();
         Cart.clear();
-        render();
+        Cart.notify();
     });
+
+    // Dong bo khi gio hang bi doi tu noi khac tren CUNG trang (vd drawer
+    // giot hang o header) - render() o day khong tu goi Cart.notify() nen
+    // khong bi lap vo han qua lai voi event nay.
+    window.addEventListener('cart:updated', render);
 
     render();
 });

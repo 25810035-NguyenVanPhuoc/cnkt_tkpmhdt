@@ -30,7 +30,8 @@ class SupplierController extends Controller implements HasMiddleware
         $suppliers = Supplier::query()
             ->when($request->filled('q'), fn ($q) => $q->where('name', 'like', '%'.$request->string('q').'%'))
             ->when($request->filled('is_active'), fn ($q) => $q->where('is_active', $request->boolean('is_active')))
-            ->orderBy('name')
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
             ->paginate($request->integer('per_page', 50));
 
         return response()->json(SupplierResource::collection($suppliers)->response()->getData(true));

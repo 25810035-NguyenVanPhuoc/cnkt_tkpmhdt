@@ -17,6 +17,7 @@ class CustomerResource extends JsonResource
             'address' => $this->address,
             'loyalty_points' => $this->loyalty_points,
             'orders_count' => $this->whenCounted('orders'),
+            'orders' => OrderResource::collection($this->whenLoaded('orders')),
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
         ];

@@ -90,4 +90,25 @@ class InventoryTest extends TestCase
         $this->assertDatabaseHas('stock_movements', ['product_id' => $product->id, 'warehouse_id' => $from->id, 'type' => 'transfer', 'quantity' => -4]);
         $this->assertDatabaseHas('stock_movements', ['product_id' => $product->id, 'warehouse_id' => $to->id, 'type' => 'transfer', 'quantity' => 4]);
     }
+
+    public function test_serialized_stock_in_also_syncs_product_stock_quantity(): void
+    {
+        // Regression test: before this fix, product_stock was NEVER written
+        // for serialized products (only product_units), so they silently
+        // vanished from the "Ton kho theo so luong" listing (GET /stock).
+        $warehouse = Warehouse::factory()->create();
+        $product = Product::factory()->serialized()->create();
+
+        $response = $this->postJson('/api/stock/in', [
+            'product_id' => $product->id,
+            'warehouse_id' => $warehouse->id,
+            'imei_serials' => ['IMEI-A', 'IMEI-B', 'IMEI-C'],
+        ]);
+
+        $response->assertOk();
+        $this->assertSame(3, ProductStock::where('product_id', $product->id)->where('warehouse_id', $warehouse->id)->value('quantity'));
+
+        $listResponse = $this->getJson('/api/stock?product_id='.$product->id);
+        $listResponse->assertOk()->assertJsonFragment(['quantity' => 3]);
+    }
 }

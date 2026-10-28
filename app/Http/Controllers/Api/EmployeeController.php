@@ -12,6 +12,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Spatie\Permission\Models\Role;
 
@@ -41,7 +42,8 @@ class EmployeeController extends Controller implements HasMiddleware
                 $query->whereHas('roles', fn ($q) => $q->where('id', $request->integer('role_id')));
             })
             ->when($request->filled('is_active'), fn ($query) => $query->where('is_active', $request->boolean('is_active')))
-            ->orderBy('name')
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
             ->paginate($request->integer('per_page', 15));
 
         return response()->json(EmployeeResource::collection($employees)->response()->getData(true));
@@ -49,10 +51,19 @@ class EmployeeController extends Controller implements HasMiddleware
 
     public function store(StoreEmployeeRequest $request): JsonResponse
     {
-        $employee = User::create($request->safe()->except(['role_id']))->refresh();
+        $tempPassword = Str::password(10, symbols: false);
+
+        $employee = User::create([
+            ...$request->safe()->except(['role_id']),
+            'password' => $tempPassword,
+            'must_change_password' => true,
+        ])->refresh();
         $employee->assignRole(Role::findOrFail($request->integer('role_id')));
 
-        return response()->json(['data' => new EmployeeResource($employee->load('roles'))], 201);
+        return response()->json([
+            'data' => new EmployeeResource($employee->load('roles')),
+            'temp_password' => $tempPassword,
+        ], 201);
     }
 
     public function show(User $employee): JsonResponse
@@ -66,6 +77,7 @@ class EmployeeController extends Controller implements HasMiddleware
 
         if ($request->filled('password')) {
             $data['password'] = $request->string('password');
+            $data['must_change_password'] = true;
         }
 
         $employee->update($data);

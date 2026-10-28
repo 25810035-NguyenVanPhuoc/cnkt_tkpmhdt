@@ -1,5 +1,6 @@
 @php
     $headerCategories = \App\Models\Category::where('is_active', true)->orderBy('name')->get();
+    $authCustomer = \Illuminate\Support\Facades\Auth::guard('customer')->user();
 @endphp
 
 <header class="{{ $headerClass ?? '' }}">
@@ -11,7 +12,25 @@
                 <div class="right-top-bar flex-w h-full">
                     <a href="#" class="flex-c-m trans-04 p-lr-25">VN</a>
                     <a href="#" class="flex-c-m trans-04 p-lr-25">EN</a>
-                    <span class="flex-c-m trans-04 p-lr-25">Khách Vãng Lai</span>
+                    @if ($authCustomer)
+                        <div class="flex-c-m trans-04 p-lr-25 account-menu">
+                            <a href="#" class="account-menu-toggle" style="color:inherit;">
+                                {{ $authCustomer->name }} <i class="fa fa-angle-down m-l-5"></i>
+                            </a>
+                            <ul class="sub-menu account-menu-list">
+                                <li><a href="{{ route('storefront.account.orders') }}">Đơn hàng của tôi</a></li>
+                                <li>
+                                    <form method="POST" action="{{ route('storefront.logout') }}" class="account-logout-form">
+                                        @csrf
+                                        <button type="submit" class="account-logout-btn">Đăng xuất</button>
+                                    </form>
+                                </li>
+                            </ul>
+                        </div>
+                    @else
+                        <a href="{{ route('storefront.login') }}" class="flex-c-m trans-04 p-lr-25">Đăng Nhập</a>
+                        <a href="{{ route('storefront.register') }}" class="flex-c-m trans-04 p-lr-25">Đăng Ký</a>
+                    @endif
                 </div>
             </div>
         </div>
@@ -55,7 +74,7 @@
                         <i class="zmdi zmdi-time-restore"></i>
                     </div>
                     <a href="{{ route('storefront.cart') }}"
-                        class="icon-header-item cl2 hov-cl1 trans-04 p-l-22 p-r-11 icon-header-noti js-cart-count"
+                        class="icon-header-item cl2 hov-cl1 trans-04 p-l-22 p-r-11 icon-header-noti js-cart-count js-show-cart"
                         data-notify="0">
                         <i class="zmdi zmdi-shopping-cart"></i>
                     </a>
@@ -75,7 +94,7 @@
                 <i class="zmdi zmdi-time-restore"></i>
             </div>
 
-            <a href="{{ route('storefront.cart') }}" class="dis-block icon-header-item cl2 hov-cl1 trans-04 p-r-11 p-l-10 icon-header-noti js-cart-count" data-notify="0">
+            <a href="{{ route('storefront.cart') }}" class="dis-block icon-header-item cl2 hov-cl1 trans-04 p-r-11 p-l-10 icon-header-noti js-cart-count js-show-cart" data-notify="0">
                 <i class="zmdi zmdi-shopping-cart"></i>
             </a>
         </div>
@@ -100,9 +119,28 @@
                 <div class="right-top-bar flex-w h-full">
                     <a href="#" class="flex-c-m p-lr-10 trans-04">VN</a>
                     <a href="#" class="flex-c-m p-lr-10 trans-04">EN</a>
-                    <span class="flex-c-m p-lr-10 trans-04">Khách Vãng Lai</span>
+                    @if ($authCustomer)
+                        <span class="flex-c-m p-lr-10 trans-04">{{ $authCustomer->name }}</span>
+                    @else
+                        <a href="{{ route('storefront.login') }}" class="flex-c-m p-lr-10 trans-04">Đăng Nhập</a>
+                    @endif
                 </div>
             </li>
+            @if ($authCustomer)
+                <li>
+                    <a href="{{ route('storefront.account.orders') }}">Đơn hàng của tôi</a>
+                </li>
+                <li>
+                    <form method="POST" action="{{ route('storefront.logout') }}">
+                        @csrf
+                        <button type="submit" style="background:none;border:0;width:100%;text-align:left;padding:0;">Đăng xuất</button>
+                    </form>
+                </li>
+            @else
+                <li>
+                    <a href="{{ route('storefront.register') }}">Đăng Ký</a>
+                </li>
+            @endif
         </ul>
 
         <ul class="main-menu-m">

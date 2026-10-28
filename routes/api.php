@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\ActivityLogController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CategoryController;
 use App\Http\Controllers\Api\CustomerController;
@@ -34,6 +35,7 @@ Route::prefix('storefront')->name('storefront.')->group(function () {
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/me', [AuthController::class, 'me']);
+    Route::post('/change-password', [AuthController::class, 'changePassword']);
 
     Route::apiResource('categories', CategoryController::class);
 
@@ -81,4 +83,6 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::get('settings', [SettingsController::class, 'index']);
     Route::put('settings', [SettingsController::class, 'update']);
+
+    Route::get('activity-log', [ActivityLogController::class, 'index']);
 });
